@@ -6,7 +6,7 @@ run_simulations <- function(prior_sampler,
                             n_sims        = 100,
                             n_obs         = 50,
                             n_draws       = 1000,
-                            prior_hyper_params = NULL) {
+                            prior_hyper_params) {
 
   sims <- vector("list", n_sims)
 

@@ -5,5 +5,5 @@
 #' @param x integer
 
 testfunction <- function(x){
-  print(x)
+  print("x")
 }

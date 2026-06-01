@@ -1,32 +1,6 @@
 library(future)
 library(future.apply)
 
-# =============================================================================
-# CONFIG
-# =============================================================================
-
-N_SIM   <- 200000
-L_DRAWS <- 1000
-
-PRIOR <- list(
-  name        = "Normal(5, 16)",
-  hyperparams = c(mean = 5, sd = 16),
-  draw        = function(hp) rnorm(1, hp["mean"], hp["sd"])
-)
-
-LIKELIHOOD <- list(
-  name     = "Normal obs, n=30",
-  simulate = function(n_obs, theta) rnorm(n_obs, mean = theta, sd = 1)
-)
-
-POSTERIOR <- list(
-  name = "Normal approximation",
-  draw = function(y, n_obs, hp, L) {
-    post_mean <- mean(y) - 0.1
-    post_sd   <- 1 / sqrt(n_obs)
-    rnorm(L, mean = post_mean, sd = post_sd)
-  }
-)
 
 # =============================================================================
 # RANKS
@@ -139,10 +113,15 @@ sims   <- run_simulations(prior_sampler      = PRIOR$draw,
 
 ranked <- compute_ranks(sims)
 
-ranks_vec <- ranked$ranks[, 1]
+param_names <- colnames(ranked$ranks)
 
-summarise_sbc(ranks_vec, L_DRAWS, N_SIM)
-plot_sbc_diagnostics(ranks_vec, L_DRAWS, N_SIM,
-                     PRIOR$name, LIKELIHOOD$name, POSTERIOR$name)
+for (p in param_names) {
+  ranks_vec <- ranked$ranks[, p]
+
+  cat("\n=== Parameter:", p, "===\n")
+  summarise_sbc(ranks_vec, L_DRAWS, N_SIM)
+  plot_sbc_diagnostics(ranks_vec, L_DRAWS, N_SIM,
+                       PRIOR$name, LIKELIHOOD$name, POSTERIOR$name)
+}
 
 plan(sequential)

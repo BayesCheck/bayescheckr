@@ -38,3 +38,30 @@ posterior_sampler <- function(y, n_obs, posterior_input_function, prior_hyperpar
   posterior_matrix <- posterior_input_function(y, n_obs, prior_hyperparams)
   return(posterior_matrix)
 }
+
+#' compute_ranks
+#'
+#' Raphael pls explain
+#' @param sims Raphael pls explain
+compute_ranks <- function(sims) {
+  param_names <- names(sims$sims[[1]]$theta_tilde)
+  n_params    <- length(param_names)
+
+  ranks <- matrix(NA,
+                  nrow     = sims$n_sims,
+                  ncol     = n_params,
+                  dimnames = list(NULL, param_names))
+
+  for (i in seq_len(sims$n_sims)) {
+    theta_tilde <- sims$sims[[i]]$theta_tilde
+    draws       <- sims$sims[[i]]$draws
+    for (p in param_names) {
+      ranks[i, p] <- sum(draws[, p] < theta_tilde[p])
+    }
+  }
+
+  structure(
+    list(ranks = ranks, n_draws = sims$n_draws, n_sims = sims$n_sims),
+    class = "bayescheckr_ranks"
+  )
+}

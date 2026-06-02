@@ -4,7 +4,7 @@ format: html
 ---
 
 ## Testing SBC
-### OPn the iid normal example
+### On the iid normal example
 
 Load our package:
 

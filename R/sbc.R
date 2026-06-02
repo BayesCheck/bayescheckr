@@ -70,11 +70,5 @@ run_sbc <- function(prior_sampler,
   res
 }
 
-plot_SBC <- function(res) {
-  SBC::plot_rank_hist(res)
-  SBC::plot_ecdf(res)
-  SBC::plot_ecdf_diff(res)
-}
-
 
 

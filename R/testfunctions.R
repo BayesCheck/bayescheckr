@@ -6,108 +6,65 @@
 #)
 #
 
-#' Run Tests
-#'
-#' Test function from users input, ran all at once.
-#' @param results the res object
-#' @param L number of posterior draws
-#' @param test
-run_tests <- function(results, L, tests) {
-  lapply(
-    tests,
-    function(f) f(results, L)
-  )
+#' We require that the user gives test functions inside a NAMED list.
+#' Something like:
+#' test_functions <- list(
+#'  mu_sq = function(theta, y) theta["mu"]^2,
+#'  product = function(theta, y) theta["mu"] * theta["sigmasq"],
+#'  log_like = function(theta, y) sum(dnorm(y, theta["mu"],
+#'                                sqrt(theta["sigmasq"]), log = TRUE))
+#')
+
+make_test_functions <- function(...) {
+  fns <- list(...)
+
+  # must be named
+  if (is.null(names(fns)) || any(names(fns) == ""))
+    stop("All test functions must be named, e.g. make_test_functions(mu_sq = function(theta, y) ...)")
+
+  # each element must be a function
+  if (!all(sapply(fns, is.function)))
+    stop("All elements must be functions.")
+
+  # each function must take exactly theta and y as arguments
+  for (nm in names(fns)) {
+    args <- names(formals(fns[[nm]]))
+    if (!identical(args, c("theta", "y")))
+      stop("Test function '", nm, "' must have exactly two arguments: theta and y.")
+  }
+
+  structure(fns, class = "bayescheckr_tests")
+}
+
+#' The user calls it like:
+#' test_fns <- make_test_functions(
+#'  mu_sq    = function(theta, y) theta["mu"]^2,
+#'  product  = function(theta, y) theta["mu"] * theta["sigmasq"],
+#'  log_like = function(theta, y) sum(dnorm(y, theta["mu"],
+#'                                    sqrt(theta["sigmasq"]), log = TRUE))
+#')
+
+run_tests <- function(test_fns, theta_matrix, y_matrix) {
+
+  #theta matrix: n_draws x n_params (either direct or MCMC draws)
+  #y_matrix    : n_draws x n_obs
+
+  results <- lapply(names(test_fns), function(nm) {
+    fn <- test_fns[[nm]]
+
+    #apply test function to each row (each draw):
+    values <- sapply(seq_len(nrow(theta_matrix)), function(i) {
+      fn(theta = theta_matrix[i, ], y = y_matrix[i, ])
+    })
+
+    data.frame(
+      test_function = nm,
+      values = values
+
+    )
+
+    })
 }
 
 
 
-#' Rank Mean Test
-#'
-#' Test function for mean
-#' @param results the res object
-#' @param L number of posterior draws
-rank_mean_test <- function(results, L) {
-
-  stopifnot(inherits(results, "SBC_results"))
-
-  ranks <- results$stats$rank
-
-  observed_mean <- mean(ranks)
-  expected_mean <- L / 2
-
-  list(
-    observed_mean = observed_mean,
-    expected_mean = expected_mean,
-    difference = observed_mean - expected_mean
-  )
-}
-
-#' Rank Variance Test
-#'
-#' Test function for varience
-#' @param results the res object
-#' @param L number of posterior draws
-rank_variance_test <- function(results, L) {
-
-  stopifnot(inherits(results, "SBC_results"))
-
-  ranks <- results$stats$rank
-
-  observed_variance <- var(ranks)
-  expected_variance <- L * (L + 2) / 12
-
-  list(
-    observed_variance = observed_variance,
-    expected_variance = expected_variance,
-    ratio = observed_variance / expected_variance
-  )
-}
-
-#' Rank KS Test
-#'
-#' Test function for KS test
-#' @param results the res object
-#' @param L number of posterior draws
-rank_ks_test <- function(results, L) {
-
-  stopifnot(inherits(results, "SBC_results"))
-
-  ranks <- results$stats$rank
-
-  ks.test(
-    ranks / L,
-    "punif"
-  )
-}
-
-
-#' Rank KL Divergence
-#'
-#' Test function for KL Divergence
-#' @param results the res object
-#' @param L number of posterior draws
-rank_kl_divergence <- function(results, L) {
-
-  stopifnot(inherits(results, "SBC_results"))
-
-  ranks <- results$stats$rank
-
-  counts <- tabulate(ranks + 1, nbins = L + 1)
-
-  p_obs <- counts / sum(counts)
-  p_exp <- rep(1 / (L + 1), L + 1)
-
-  # Remove zero bins to avoid 0*log(0)
-  nonzero <- p_obs > 0
-
-  kl <- sum(
-    p_obs[nonzero] *
-      log(p_obs[nonzero] / p_exp[nonzero])
-  )
-
-  list(
-    KL_divergence = kl,
-    observed_probs = p_obs,
-    expected_probs = p_exp
-  )
-}

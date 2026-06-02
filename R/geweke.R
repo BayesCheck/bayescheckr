@@ -9,7 +9,8 @@
 # - SBC_generator_function
 # - generate_datasets
 #
-# what I need to bring to the table: the Gibbs-specific alternating thing
+# what I need to bring to the table: the joint posterior sampler
+# Gibbs-specific alternating thing
 # (must take same/compatible inputs as other functions SBC uses)
 # only "successive-conditional" sampler; SBC has direct marginal-conditional
 # decouple the main work from the second step = test functions
@@ -31,74 +32,81 @@
 # -- e.g. es_linreg_saved$stats has these columns:
 #         sim_id variable simulated_value rank z_score mean
 
+# successive conditional draws using first principles as inputs
 
-direct_joint_sampler <- function(prior_sampler,
-                                 likelihood_sampler,
-                                 prior_hyperparams,
-                                 ndraws, n_obs) {
+geweke_suc_cond_draws <- function(prior_sampler,
+                                likelihood_sampler,
+                                prior_hyper_params,
+                                n_params, n_draws, n_obs) {
 
-  draws_ncol <- 1 #some number dependent on length of n_obs, length of
-    # preallocate storage for all of the draws
+  #get info about parameters
 
-  #initialize to 0
-  direct_draws <- matrix(0, nrow = ndraws, ncol = draws_ncol)
+  prior_draw <- prior_sampler(prior_hyper_params) #check accuracy of fct call
 
-  colnames(direct_draws) <- c(paste0("beta", 1:p), "sigma", paste0("y", 1:n))
+  n_params <- length(prior_draw)
+  varnames <- names(prior_draw)
+
+  # colnames (pre-rank/z-score computation): sim_id, variable, simulated_value
+  # to be mutated() later: rank, z_score, mean
+
+  n_row <- n_params * n_draws #number of params x number of simulations
+
+  # preallocate storage for all of the draws
+  gibbs_draws <- data.frame(0, nrow = n_row, ncol = 3,
+                            dimnames = list(1:n_row, #numbered rows
+                                            c("sim_id", #col names
+                                              "variable",
+                                              "simulated_value")
+                                            )
+                            ) #sim_id, variable, simulated_value
+
+  # initialize
+  theta <- prior_draw #initialize theta?
+
+  y <- runif(n_obs) #using user input
 
   for (m in 1:ndraws) {
-    # simulate exactly from the prior
-    theta <- prior_sampler(bbar0, v0, a0, b0)
-    # simulate exactly from the likelihood given the draw from the prior
-    5
-    y <- likelihood_sampler(x, n, theta)
-    direct_draws[m, ] <- c(theta, y)
-  }
-  # return an iid sample from the joint distribution
-  return(direct_draws)
-}
 
-# trying to generalize
-gibbs_joint_sampler <- function(prior_sampler,
-                                likelihood_sampler,
-                                prior_hyperparams,
-                                ndraws, n_obs) {
-  # preallocate storage for all of the draws
-  p <- ncol(x)
-  ## column number: n for y, p for beta, + 1 for sigma
-  gibbs_draws <- matrix(0, nrow = ndraws, ncol = n + p + 1)
-  colnames(gibbs_draws) <- c(paste0("beta", 1:p), "sigma", paste0("y", 1:n))
-  # initialize
-  theta <- c(rep(0, p), 1) #default beta (p-length vector) and sigma
-  y <- runif(n)
-  for(m in 1:ndraws){
-    # simulate from the posterior using my sampler from above
-    # the initialization is very important here!
-    theta <- posterior_sampler(1, x, y, bbar0, v0, a0, b0, init = theta)
-    theta <- as.vector(theta)
+    # simulate from the posterior
+
+    theta <- posterior_sampler(ndraws = n_draws,
+                               y = y,
+                               prior_hyper_params = prior_hyper_params)
+
     # simulate data given the latest parameter values
-    y <- likelihood_sampler(x, n, theta)
-    6
-    gibbs_draws[m, ] <- c(theta, y)
+    y <- likelihood_sampler(n_obs, theta) #, prior_hyper_params?)
+
+    #cycle through rows for one simulation
+    for (var in varnames) {
+      index <- n_params*(m - 1) + which(varnames == var)
+      gibbs_draws[m + which, ] <- c("sim_id" = m, #constant across variables
+                                "variable" = var,
+                                "simulated_value" = theta[var])
+    }
   }
+
   return(gibbs_draws)
-}
-
-get_geweke_draws <- function(prior_sampler,
-                             likelihood_sampler,
-                             posterior_sampler,
-                             n_sims        = 100,
-                             n_obs         = 50,
-                             n_draws       = 1000,
-                             prior_hyper_params) {
-
-  direct_draws <- direct_joint_sampler(prior_sampler = prior_sampler,
-                                       likelihood_sampler = likelihood_sampler,
-                                       n_obs = n_obs)
-
-  gibbs_draws <- gibbs_joint_sampler(posterior_sampler = posterior_sampler,
-                                     n_obs = n_obs)
 
 }
+
+
+# IGNORE OLD CODE
+# get_geweke_draws <- function(prior_sampler,
+#                              likelihood_sampler,
+#                              posterior_sampler,
+#                              n_sims        = 100,
+#                              n_obs         = 50,
+#                              n_draws       = 1000,
+#                              prior_hyper_params) {
+#
+#   direct_draws <- direct_joint_sampler(prior_sampler = prior_sampler,
+#                                        likelihood_sampler = likelihood_sampler,
+#                                        n_obs = n_obs)
+#
+#   gibbs_draws <- gibbs_joint_sampler(posterior_sampler = posterior_sampler,
+#                                      n_obs = n_obs)
+#
+# }
 
 #check the marginals
 
@@ -171,3 +179,31 @@ plot(quantiles_direct, quantiles_gibbs, col = "red", pch = 19, cex = 0.5,
      main = "|beta_1 - beta_2|",
      xlab = "direct", ylab = "gibbs")
 abline(a = 0, b = 1)
+
+
+# replaced by SBC_generator_function and generate_datasets I think?
+# direct_joint_sampler <- function(prior_sampler,
+#                                  likelihood_sampler,
+#                                  prior_hyperparams,
+#                                  ndraws, n_obs) {
+#
+#   draws_ncol <- 1 #some number dependent on length of n_obs, length of
+#   # preallocate storage for all of the draws
+#
+#   #initialize to 0
+#   direct_draws <- matrix(0, nrow = ndraws, ncol = draws_ncol)
+#
+#   colnames(direct_draws) <- c(paste0("beta", 1:p), "sigma", paste0("y", 1:n))
+#
+#   for (m in 1:ndraws) {
+#     # simulate exactly from the prior
+#     theta <- prior_sampler(bbar0, v0, a0, b0)
+#     # simulate exactly from the likelihood given the draw from the prior
+#     5
+#     y <- likelihood_sampler(x, n, theta)
+#     direct_draws[m, ] <- c(theta, y)
+#   }
+#   # return an iid sample from the joint distribution
+#   return(direct_draws)
+# }
+

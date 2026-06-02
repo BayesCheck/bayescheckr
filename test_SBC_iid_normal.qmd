@@ -3,6 +3,9 @@ title: "test_SBC"
 format: html
 ---
 
+## Testing SBC
+### OPn the iid normal example
+
 Load our package:
 
 ```{r}
@@ -103,9 +106,9 @@ res <- run_sbc(
   prior_sampler      = prior_sampler,
   likelihood_sampler = likelihood_sampler,
   posterior_sampler  = posterior_sampler,
-  n_sims             = 500,        # small for testing
+  n_sims             = 1000,        # small for testing
   n_obs              = 50,
-  n_draws            = 500,        # small for testing
+  n_draws            = 1000,        # small for testing
   prior_hyper_params = prior_hyper_params,
   parallelize        = FALSE
 )
@@ -141,14 +144,50 @@ Recompute ranks using our new function:
 ranks_test <- recompute_ranks(res, test_fns)
 ```
 
-```{r}
-run_sbc_diagnostics(ranks_test)
-```
+We use the `.ranks_to_sbc_results` function as an intermediary: it formats our recomputed ranks `ranks_test` object into the shape expected by the SBC plot functions.
+
 ```{r}
 ranks_res <- .ranks_to_sbc_results(ranks_test)
 ```
 
+Then we can call the SBC plot functions on the appropriately formatted `ranks_res` object:
+
 ```{r}
+SBC::plot_rank_hist(ranks_res)
 SBC::plot_ecdf_diff(ranks_res)
 ```
+
+## User workflow
+
+In conclusion, the user workflow is as follows:
+
+1. You fit the model ONCE.
+
+  result <- run_SBC(...)
+  
+2. Plot baseline parameters - use SBC directly from the package.
+
+  SBC::plot_rank_hist(result$sbc_result)
+  SBC::plot_ecdf(result$sbc_result)
+  SBC::plot_ecdf_diff(result$sbc_result)
+  
+3. Define test functions
+
+  test_fns <- make_test_functions(...)
+  
+4. Recompute ranks, change into appropriate format, and plot
+
+  ranked <- recompute_ranks(result, test_fns)
+  
+  ranked_res <- .ranks_to_sbc_results(ranks_test)
+  
+  SBC::plot_rank_hist(ranked_res)
+  SBC other plots, etc.
+  
+  
+
+
+
+
+
 

@@ -8,31 +8,6 @@
 #
 # - SBC_generator_function
 # - generate_datasets
-#
-# what I need to bring to the table: the joint posterior sampler
-# Gibbs-specific alternating thing
-# (must take same/compatible inputs as other functions SBC uses)
-# only "successive-conditional" sampler; SBC has direct marginal-conditional
-# decouple the main work from the second step = test functions
-# test stuff: table with
-# - the moments/summary stats
-# - p-values for KS test and OG paper test (difference in means) z-score
-# - convergence diagnostics (autocorrelation? R-squared? canned R functions)
-# - whatever is inputted to make that table should also be a callable object
-# - test functions = up to the user
-# - two function prototype:
-#   - geweke_summary(direct draws, gibbs draws, test functions):
-#     - returns a table (aka dataframe)
-#   - geweke_plot(direct draws, gibbs draws, test functions):
-#     - doesn't return anything, just gives a panel for the QQ plots
-# main subtlety/thing to watch out for:
-#   user-friendly way to send to computer the test functions we want it to run
-# end goal: Friday meeting will have him live-testing this as "blind user"
-# format: long-formatted output matrix:
-# -- e.g. es_linreg_saved$stats has these columns:
-#         sim_id variable simulated_value rank z_score mean
-
-# successive conditional draws using first principles as inputs
 
 library(tidyverse)
 
@@ -98,7 +73,7 @@ geweke_suc_cond_draws <- function(prior_sampler,
     }
   }
 
-  #pivot to wide format
+  #pivot to wide format: 1 row/simulation
 
   draws_matrix_wide <- draws_matrix |>
     group_by(sim_id) |>
@@ -113,6 +88,7 @@ geweke_suc_cond_draws <- function(prior_sampler,
   return(gibbs_draws)
 }
 
+#using SBC to speed up my joint sampler
 geweke_marg_cond_draws <- function(prior_sampler,
                                    likelihood_sampler,
                                    prior_hyper_params,
@@ -126,6 +102,7 @@ geweke_marg_cond_draws <- function(prior_sampler,
   }
 
   #directly sample parameters and draws
+  #need to parallelize for speed
   gen <- SBC::SBC_generator_function(generator_single)
   SBC::generate_datasets(gen, n_draws) # = n_sims? check
 
@@ -145,7 +122,7 @@ geweke_marg_cond_draws <- function(prior_sampler,
 #' Now moving to test functions: difference in means testing (per Geweke 2004)
 #' and KS testing, for z-score comparison, among other tests
 
-geweke_test <- function(g_mc, g_sc) {
+geweke_test <- function(g_mc, g_sc) { #input: vectors, length = n_draws
 
   #get terms for test statistics --
 
@@ -230,6 +207,34 @@ all_the_tests <- function(direct_draws, gibbs_draws, test_functions) {
 
   return(results_matrix)
 }
+
+# VIGNETTE MATERIAL / NOTES TO SELF
+
+#
+# what I need to bring to the table: the joint posterior sampler
+# Gibbs-specific alternating thing
+# (must take same/compatible inputs as other functions SBC uses)
+# only "successive-conditional" sampler; SBC has direct marginal-conditional
+# decouple the main work from the second step = test functions
+# test stuff: table with
+# - the moments/summary stats
+# - p-values for KS test and OG paper test (difference in means) z-score
+# - convergence diagnostics (autocorrelation? R-squared? canned R functions)
+# - whatever is inputted to make that table should also be a callable object
+# - test functions = up to the user
+# - two function prototype:
+#   - geweke_summary(direct draws, gibbs draws, test functions):
+#     - returns a table (aka dataframe)
+#   - geweke_plot(direct draws, gibbs draws, test functions):
+#     - doesn't return anything, just gives a panel for the QQ plots
+# main subtlety/thing to watch out for:
+#   user-friendly way to send to computer the test functions we want it to run
+# end goal: Friday meeting will have him live-testing this as "blind user"
+# format: long-formatted output matrix:
+# -- e.g. es_linreg_saved$stats has these columns:
+#         sim_id variable simulated_value rank z_score mean
+
+# successive conditional draws using first principles as inputs
 
 # NICE TO HAVES / CUT FOR TIME
 # par(mfrow = c(3, 3))

@@ -40,3 +40,4 @@ run_simulations <- function(prior_sampler,
     class = "bayescheckr_sims"
   )
 }
+

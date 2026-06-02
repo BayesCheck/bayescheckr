@@ -117,11 +117,4 @@ run_sbc <- function(prior_sampler,
   )
 }
 
-run_sbc_diagnostics <- function(ranked) {
-  fake_res <- .ranks_to_sbc_results(ranked)
-  SBC::plot_rank_hist(fake_res)
-  SBC::plot_ecdf_diff(fake_res)
-}
-
-
 

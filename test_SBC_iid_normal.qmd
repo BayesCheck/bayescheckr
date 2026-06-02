@@ -111,11 +111,44 @@ res <- run_sbc(
 )
 ```
 ```{r}
-SBC::plot_rank_hist(res)
+SBC::plot_rank_hist(res$sbc_result)
 ```
 ```{r}
-SBC::plot_ecdf_diff(res)
+SBC::plot_ecdf_diff(res$sbc_result)
+```
+Ok great! Time to see if we can now use our package to run some test functions on it.
+
+```{r}
+source("R/testfunctions.R")
 ```
 
+We need to define our test functions in a specific way. Like this:
 
+```{r}
+test_fns <- make_test_functions(
+  mu_sq = function(theta, y) theta["mu"]^2,
+  product = function(theta, y) theta["mu"] * theta["sigmasq"],
+  log_like = function(theta, y) sum(dnorm(y, 
+                                          mean = theta["mu"], 
+                                          sd = sqrt(theta["sigmasq"]),
+                                          log = TRUE))
+)
+```
+
+Recompute ranks using our new function:
+
+```{r}
+ranks_test <- recompute_ranks(res, test_fns)
+```
+
+```{r}
+run_sbc_diagnostics(ranks_test)
+```
+```{r}
+ranks_res <- .ranks_to_sbc_results(ranks_test)
+```
+
+```{r}
+SBC::plot_ecdf_diff(ranks_res)
+```
 

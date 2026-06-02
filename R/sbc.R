@@ -68,6 +68,7 @@ run_sbc <- function(prior_sampler,
   }
 
   res
+  #CHANGE: need to return structure with res AND dataset.
 }
 
 

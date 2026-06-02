@@ -44,7 +44,7 @@ make_test_functions <- function(...) {
 #'                                    sqrt(theta["sigmasq"]), log = TRUE))
 #')
 
-run_tests <- function(test_fns, theta_matrix, y_matrix) {
+run_geweke_tests <- function(test_fns, theta_matrix, y_matrix) {
 
   #theta matrix: n_draws x n_params (either direct or MCMC draws)
   #y_matrix    : n_draws x n_obs
@@ -65,6 +65,8 @@ run_tests <- function(test_fns, theta_matrix, y_matrix) {
 
     })
 }
+
+recompute_SBC_statistics <- function() {}
 
 
 

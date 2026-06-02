@@ -34,8 +34,6 @@
 
 # successive conditional draws using first principles as inputs
 
-library(tidyverse)
-
 geweke_suc_cond_draws <- function(prior_sampler,
                                   likelihood_sampler,
                                   posterior_sampler,

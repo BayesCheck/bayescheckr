@@ -34,10 +34,13 @@
 
 # successive conditional draws using first principles as inputs
 
+library(tidyverse)
+
 geweke_suc_cond_draws <- function(prior_sampler,
-                                likelihood_sampler,
-                                prior_hyper_params,
-                                n_params, n_draws, n_obs) {
+                                  likelihood_sampler,
+                                  posterior_sampler,
+                                  prior_hyper_params,
+                                  n_draws, n_obs) {
 
   #get info about parameters
 
@@ -52,41 +55,66 @@ geweke_suc_cond_draws <- function(prior_sampler,
   n_row <- n_params * n_draws #number of params x number of simulations
 
   # preallocate storage for all of the draws
-  gibbs_draws <- data.frame(0, nrow = n_row, ncol = 3,
+  draws_matrix <- data.frame(matrix(0, nrow = n_row, ncol = 3,
                             dimnames = list(1:n_row, #numbered rows
                                             c("sim_id", #col names
                                               "variable",
                                               "simulated_value")
                                             )
-                            ) #sim_id, variable, simulated_value
+                            )) #sim_id, variable, simulated_value
+
+  theta_matrix <- matrix(0, nrow = n_draws, ncol = n_params)
+  y_matrix <- matrix(0, nrow = n_draws, ncol = n_obs)
+
+  colnames(theta_matrix) <- varnames
+  colnames(y_matrix) <- paste0("y", 1:n_obs)
 
   # initialize
-  theta <- prior_draw #initialize theta?
-
+  theta <- prior_draw
   y <- runif(n_obs) #using user input
 
-  for (m in 1:ndraws) {
-
+  for (m in 1:n_draws) {
     # simulate from the posterior
-
-    theta <- posterior_sampler(ndraws = n_draws,
+    theta <- posterior_sampler(ndraws = 1,
                                y = y,
                                prior_hyper_params = prior_hyper_params)
+    theta <- theta[1, ]
+    theta_matrix[m, ] <- theta
 
     # simulate data given the latest parameter values
     y <- likelihood_sampler(n_obs, theta) #, prior_hyper_params?)
+    y_matrix[m, ] <- y
 
     #cycle through rows for one simulation
     for (var in varnames) {
       index <- n_params*(m - 1) + which(varnames == var)
-      gibbs_draws[m + which, ] <- c("sim_id" = m, #constant across variables
-                                "variable" = var,
-                                "simulated_value" = theta[var])
+      draws_matrix[index, "sim_id"] <- m #constant across variables
+      draws_matrix[index, "variable"] <- var
+      draws_matrix[index, "simulated_value"] <- theta[var]
     }
   }
 
-  return(gibbs_draws)
+  #pivot to wide format
 
+  draws_matrix_wide <- draws_matrix |>
+    group_by(sim_id) |>
+    pivot_wider(names_from = variable, values_from = simulated_value)
+
+  #return final object
+  gibbs_draws <- list(draws = draws_matrix,
+                      wide = draws_matrix_wide,
+                      theta = theta_matrix,
+                      y = y_matrix)
+
+  return(gibbs_draws)
+}
+
+geweke_marg_cond_draws <- function(prior_sampler,
+                                   likelihood_sampler,
+                                   prior_hyper_params,
+                                   n_params, n_draws, n_obs) {
+
+  direct_draws <- SBC_generator_function(...)
 }
 
 
@@ -168,7 +196,6 @@ for(i in 1:(p + 1)){
 
 #Finally let's look at the test function $h(\theta, y) = |\beta_1 - \beta_2|$:
 
-
 par(mfrow = c(1, 1))
 probs <- seq(0.05, 0.95, by = 0.05)
 h_direct <- abs(direct_draws[, 1] - direct_draws[, 2])
@@ -179,7 +206,6 @@ plot(quantiles_direct, quantiles_gibbs, col = "red", pch = 19, cex = 0.5,
      main = "|beta_1 - beta_2|",
      xlab = "direct", ylab = "gibbs")
 abline(a = 0, b = 1)
-
 
 # replaced by SBC_generator_function and generate_datasets I think?
 # direct_joint_sampler <- function(prior_sampler,

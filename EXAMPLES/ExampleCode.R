@@ -1,7 +1,4 @@
 #library(bayeschekr)
-
-# example_normal_normal.R
-#
 # Simulation-Based Calibration example using a Normal-Normal conjugate model.
 #
 # Model
@@ -172,3 +169,6 @@ hist(
 )
 abline(h = sims$n_sims / 20, col = "red", lty = 2, lwd = 2)   # expected flat line
 legend("topright", legend = "Expected (uniform)", col = "red", lty = 2, lwd = 2)
+
+
+#NOTE: CHANGE ME WHEN THE PACKAGE IS COMPLETE SO THAT THE EXAMPLE IS ACTUALY INDICATIVE OF WHAT THE CODE DOES.

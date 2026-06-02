@@ -114,7 +114,7 @@ par(mfrow = c(3, 3))
 probs <- seq(0.05, 0.95, by = 0.05)
 pvals <- numeric(n + 2)
 labels <- c(paste0("beta", 1:p), "sigma", paste0("y", 1:n))
-for(i in 1:(n + p + 1)){
+for (i in 1:(n + p + 1)) {
   quantiles_direct <- quantile(direct_draws[, i], probs)
   quantiles_gibbs <- quantile(gibbs_draws[, i], probs)
   plot(quantiles_direct, quantiles_gibbs, col = "red", pch = 19, cex = 0.5,

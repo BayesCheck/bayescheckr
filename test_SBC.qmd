@@ -1,0 +1,121 @@
+---
+title: "test_SBC"
+format: html
+---
+
+Load our package:
+
+```{r}
+source("R/sbc.R")
+```
+
+
+Taken directly from `tutotial_bayes_gibbs_sbc`:
+
+```{r}
+#| label: other-samplers
+
+prior_sampler <- function(prior_hyper_params){
+  
+  a0 <- prior_hyper_params[1]
+  b0 <- prior_hyper_params[2]
+  mu0 <- prior_hyper_params[3]
+  v20 <- prior_hyper_params[4]
+  
+  # simulate mu ~ N(mu0, v20)
+  mu <- rnorm(1, mu0, sqrt(v20))
+  
+  # independently simulate sigma2 ~ IG(a0, b0)
+  sigma2 <- 1 / rgamma(1, a0, rate = b0)
+
+  return(c(mu = mu, sigmasq = sigma2))
+}
+
+likelihood_sampler <- function(n, theta){
+  mu <- theta[1]
+  sigma2 <- theta[2]
+  
+  y <- rnorm(n, mu, sqrt(sigma2))
+  
+  return(y)
+}
+```
+
+And the posterior sampler:
+
+```{r}
+#| label: posterior-sampler
+
+posterior_sampler <- function(ndraws, 
+                              y, 
+                              prior_hyper_params, 
+                              init = c(mean(y), var(y))){
+
+  n <- length(y)
+  sum.y <- sum(y)
+  a0 <- prior_hyper_params[1]
+  b0 <- prior_hyper_params[2]
+  mu0 <- prior_hyper_params[3]
+  v20 <- prior_hyper_params[4]
+
+  # preallocate storage
+  THETA <- matrix(0, nrow = ndraws, ncol = length(init))
+  
+  # initialize
+  theta <- init
+
+  for(s in 1:ndraws){
+    
+    # draw mean given variance and data
+    
+    v2n = 1 / (1/v20 + n/theta[2]) 
+    mun = v2n * (mu0/v20 + sum.y/theta[2])
+    
+    theta[1] <- rnorm(1, mun, sqrt(v2n))
+    
+    # draw variance given mean and data
+    
+    an = a0 + n/2
+    bn = b0 + sum((y - theta[1])^2) / 2
+    
+    theta[2] <- 1 / rgamma(1, shape = an, rate = bn)
+    
+    # store the latest draw in the sth row of the THETA matrix
+    
+    THETA[s, ] <- theta
+    
+  }
+  
+  return(THETA)
+}
+```
+
+Set hyperparameters:
+
+```{r}
+prior_hyper_params <- c(a0 = 1, b0 = 1, mu0 = 0, v20 = 1)
+```
+
+Run it:
+
+```{r}
+res <- run_sbc(
+  prior_sampler      = prior_sampler,
+  likelihood_sampler = likelihood_sampler,
+  posterior_sampler  = posterior_sampler,
+  n_sims             = 500,        # small for testing
+  n_obs              = 50,
+  n_draws            = 500,        # small for testing
+  prior_hyper_params = prior_hyper_params,
+  parallelize        = FALSE
+)
+```
+```{r}
+SBC::plot_rank_hist(res)
+```
+```{r}
+SBC::plot_ecdf_diff(res)
+```
+
+
+

@@ -96,6 +96,7 @@ geweke_marg_cond_draws <- function(prior_sampler,
 
   #set up the generator function for SBC
 
+  #maybe use the .generator_single function written in sbc.R instead?
   generator_single <- function() {
     theta <- prior_sampler(prior_hyper_params)
     y <- likelihood_sampler(n_obs, theta)
@@ -205,7 +206,7 @@ all_the_tests <- function(direct_draws, gibbs_draws, test_functions) {
     results_matrix["Convergence p_value",   nm] <- 2 * pnorm(-abs(conv$z))
   }
 
-  return(results_matrix)
+  return(data.frame(results_matrix))
 }
 
 # VIGNETTE MATERIAL / NOTES TO SELF

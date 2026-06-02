@@ -67,9 +67,23 @@ run_sbc <- function(prior_sampler,
     res <- SBC::compute_SBC(dataset, backend)
   }
 
-  res
-  #CHANGE: need to return structure with res AND dataset.
+  structure(
+    list(
+      sbc_result = res,      # the SBC_results object
+      dataset    = dataset   # the SBC_datasets object
+    ),
+    class = "bayescheckr_sbc"
+  )
 }
+
+#' A full picture of what run_sbc() returns:
+#' result <- run_sbc(...)
+#'
+#' result$sbc_result                    # native SBC_results, use with SBC:: functions
+#' result$dataset$variables             # n_sims x n_params matrix of theta_tilde draws
+#' result$dataset$generated[[i]]$y      # y vector for simulation i
+#' result$sbc_result$fits[[i]]          # n_draws x n_params posterior draws for simulation i
+
 
 
 

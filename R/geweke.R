@@ -36,6 +36,10 @@
 
 library(tidyverse)
 
+#' the following two functions create the successive-conditional and
+#' marginal-conditional sampling needed for comparison per John Geweke's 2004
+#' JASA paper about "Getting it right."
+
 geweke_suc_cond_draws <- function(prior_sampler,
                                   likelihood_sampler,
                                   posterior_sampler,
@@ -49,12 +53,12 @@ geweke_suc_cond_draws <- function(prior_sampler,
   n_params <- length(prior_draw)
   varnames <- names(prior_draw)
 
-  # colnames (pre-rank/z-score computation): sim_id, variable, simulated_value
-  # to be mutated() later: rank, z_score, mean
+  #colnames (pre-rank/z-score computation): sim_id, variable, simulated_value
+  #to be mutated() later: rank, z_score, mean
 
   n_row <- n_params * n_draws #number of params x number of simulations
 
-  # preallocate storage for all of the draws
+  #preallocate storage for all of the draws
   draws_matrix <- data.frame(matrix(0, nrow = n_row, ncol = 3,
                             dimnames = list(1:n_row, #numbered rows
                                             c("sim_id", #col names
@@ -69,20 +73,20 @@ geweke_suc_cond_draws <- function(prior_sampler,
   colnames(theta_matrix) <- varnames
   colnames(y_matrix) <- paste0("y", 1:n_obs)
 
-  # initialize
+  #initialize
   theta <- prior_draw
   y <- runif(n_obs) #using user input
 
   for (m in 1:n_draws) {
-    # simulate from the posterior
+    #simulate from the posterior
     theta <- posterior_sampler(ndraws = 1,
                                y = y,
                                prior_hyper_params = prior_hyper_params)
     theta <- theta[1, ]
     theta_matrix[m, ] <- theta
 
-    # simulate data given the latest parameter values
-    y <- likelihood_sampler(n_obs, theta) #, prior_hyper_params?)
+    #simulate data given the latest parameter values
+    y <- likelihood_sampler(n_obs, theta)
     y_matrix[m, ] <- y
 
     #cycle through rows for one simulation
@@ -98,7 +102,7 @@ geweke_suc_cond_draws <- function(prior_sampler,
 
   draws_matrix_wide <- draws_matrix |>
     group_by(sim_id) |>
-    pivot_wider(names_from = variable, values_from = simulated_value)
+    dplyr::pivot_wider(names_from = variable, values_from = simulated_value)
 
   #return final object
   gibbs_draws <- list(draws = draws_matrix,
@@ -114,7 +118,35 @@ geweke_marg_cond_draws <- function(prior_sampler,
                                    prior_hyper_params,
                                    n_params, n_draws, n_obs) {
 
-  direct_draws <- SBC_generator_function(...)
+  #set up the generator function for SBC
+
+  generator_single <- function() {
+    theta <- prior_sampler(prior_hyper_params)
+    y <- likelihood_sampler(n_obs, theta)
+  }
+
+  #directly sample parameters and draws
+  gen <- SBC::SBC_generator_function(generator_single)
+  SBC::generate_datasets(gen, n_draws) # = n_sims? check
+
+  #store
+  theta_matrix <- as.matrix(data$variables)
+  y_matrix <- do.call(rbind,
+                      lapply(data$generated, function(g) g$y)) #from Claude
+  colnames(y_matrix) <- paste0("y", 1:n_obs)
+
+  direct_draws <- list(theta = theta_matrix,
+       y = y_matrix,
+       wide = cbind(theta_matrix, y_matrix))
+
+  return(direct_draws)
+}
+
+#' Now moving to test functions: difference in means testing (per Geweke 2004)
+#' and KS testing, for z-score comparison, among other tests
+
+geweke_test <- function() {
+
 }
 
 

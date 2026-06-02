@@ -13,4 +13,5 @@ Imports:
     future,
     future.apply,
     SBC,
-    tidyverse
+    tidyverse,
+    ggplot2

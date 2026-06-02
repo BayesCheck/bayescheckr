@@ -12,4 +12,5 @@ RoxygenNote: 8.0.0.9000
 Imports:
     future,
     future.apply,
-    SBC
+    SBC,
+    tidyverse

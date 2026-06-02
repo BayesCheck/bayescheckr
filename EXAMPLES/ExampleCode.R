@@ -1,174 +1,218 @@
-#library(bayeschekr)
-# Simulation-Based Calibration example using a Normal-Normal conjugate model.
-#
-# Model
-#   Prior:      mu ~ Normal(mu0, tau^2)          [tau^2 known]
-#   Likelihood: y_i ~ Normal(mu, sigma^2)        [sigma^2 known]
-#   Posterior:  mu | y ~ Normal(mu_n, tau_n^2)   [analytical]
-#
-#     where:
-#       tau_n^2 = 1 / (1/tau^2 + n/sigma^2)
-#       mu_n    = tau_n^2 * (mu0/tau^2 + n*ybar/sigma^2)
-#
-# The posterior sampler below draws directly from this closed-form posterior,
-# so the SBC ranks should be uniform if the implementation is correct.
-# ─────────────────────────────────────────────────────────────────────────────
-
-source("simulate.R")   # loads run_simulations(), rank_* tests, etc.
-
-# ── 0. Hyper-parameters ───────────────────────────────────────────────────────
-
-prior_hyper_params <- list(
-  mu0    = 0,    # prior mean
-  tau2   = 1,    # prior variance
-  sigma2 = 4     # likelihood variance (treated as known)
-)
-
-# ── 1. Prior sampler ──────────────────────────────────────────────────────────
-# Must return a *named* numeric vector.
-
-my_prior_sampler <- function(hyper) {
-  mu <- rnorm(1, mean = hyper$mu0, sd = sqrt(hyper$tau2))
-  c(mu = mu)
-}
-
-# ── 2. Likelihood sampler ─────────────────────────────────────────────────────
-# Receives n_obs (integer) and the named draw from the prior.
-
-my_likelihood_sampler <- function(n_obs, theta_tilde) {
-  rnorm(n_obs, mean = theta_tilde["mu"], sd = sqrt(prior_hyper_params$sigma2))
-}
-
-# ── 3. Posterior sampler ──────────────────────────────────────────────────────
-# Must return a matrix with n_draws rows and one named column per parameter.
-
-my_posterior_sampler <- function(ndraws, y, prior_hyper_params) {
-  n      <- length(y)
-  ybar   <- mean(y)
-  mu0    <- prior_hyper_params$mu0
-  tau2   <- prior_hyper_params$tau2
-  sigma2 <- prior_hyper_params$sigma2
-
-  # Conjugate update
-  tau_n2 <- 1 / (1/tau2 + n/sigma2)
-  mu_n   <- tau_n2 * (mu0/tau2 + n*ybar/sigma2)
-
-  # Draw from exact posterior
-  draws <- rnorm(ndraws, mean = mu_n, sd = sqrt(tau_n2))
-
-  # Return as named matrix (one column per parameter)
-  matrix(draws, ncol = 1, dimnames = list(NULL, "mu"))
-}
-
-# ── 4. Run simulations ────────────────────────────────────────────────────────
+library(bayescheckr)   # devtools::load_all(".") if working from source
+library(ggplot2)
 
 set.seed(42)
 
-sims <- run_simulations(
+# -----------------------------------------------------------------------------
+# 0. Hyperparameters
+# -----------------------------------------------------------------------------
+prior_hyper_params <- list(
+  mu_0    = 0,     # prior mean
+  sigma_0 = 1,     # prior SD
+  sigma   = 2      # known likelihood SD (fixed)
+)
+
+n_obs   <- 30     # observations per simulation
+n_sims  <- 300    # number of SBC simulations
+n_draws <- 500    # posterior draws per simulation
+
+
+# =============================================================================
+# 1. Define the prior, likelihood, and posterior samplers
+# =============================================================================
+
+# --- Prior ---
+# Returns a *named* vector so bayescheckr can label parameters.
+my_prior_sampler <- function(hyper) {
+  mu <- rnorm(1, mean = hyper$mu_0, sd = hyper$sigma_0)
+  c(mu = mu)
+}
+
+# --- Likelihood ---
+# Given theta (a named vector) and n, return a length-n vector of observations.
+my_likelihood_sampler <- function(n, theta) {
+  rnorm(n, mean = theta["mu"], sd = prior_hyper_params$sigma)
+}
+
+# --- Correct posterior sampler ---
+# Returns an n_draws x n_params matrix; each row is one posterior draw.
+correct_posterior_sampler <- function(ndraws, y, prior_hyper_params) {
+  n       <- length(y)
+  sigma   <- prior_hyper_params$sigma
+  mu_0    <- prior_hyper_params$mu_0
+  sigma_0 <- prior_hyper_params$sigma_0
+
+  sigma_n_sq <- 1 / (n / sigma^2 + 1 / sigma_0^2)
+  mu_n       <- sigma_n_sq * (sum(y) / sigma^2 + mu_0 / sigma_0^2)
+
+  mu_draws <- rnorm(ndraws, mean = mu_n, sd = sqrt(sigma_n_sq))
+  matrix(mu_draws, ncol = 1, dimnames = list(NULL, "mu"))
+}
+
+# --- Broken posterior sampler (ignores data — draws from prior only) ---
+# A sampler that forgets to condition on y; SBC should catch this.
+broken_posterior_sampler <- function(ndraws, y, prior_hyper_params) {
+  mu_draws <- rnorm(ndraws,
+                    mean = prior_hyper_params$mu_0,
+                    sd   = prior_hyper_params$sigma_0)
+  matrix(mu_draws, ncol = 1, dimnames = list(NULL, "mu"))
+}
+
+
+# =============================================================================
+# 2. SBC with the CORRECT posterior sampler
+# =============================================================================
+cat("Running SBC with correct posterior sampler...\n")
+
+sbc_correct <- run_sbc(
   prior_sampler      = my_prior_sampler,
   likelihood_sampler = my_likelihood_sampler,
-  posterior_sampler  = my_posterior_sampler,
-  n_sims             = 200,
-  n_obs              = 50,
-  n_draws            = 999,    # L; rank ∈ {0, 1, ..., L}
-  prior_hyper_params = prior_hyper_params
+  posterior_sampler  = correct_posterior_sampler,
+  n_sims             = n_sims,
+  n_obs              = n_obs,
+  n_draws            = n_draws,
+  prior_hyper_params = prior_hyper_params,
+  parallelize        = FALSE
 )
 
-cat("Simulations complete.\n")
-cat("  n_sims  :", sims$n_sims,  "\n")
-cat("  n_obs   :", sims$n_obs,   "\n")
-cat("  n_draws :", sims$n_draws, "\n\n")
+# --- Inspect with native SBC plots ---
+p_correct <- plot_rank_hist(sbc_correct$sbc_result)
+print(p_correct + ggtitle("Correct sampler — rank histogram (should be flat)"))
 
-# ── 5. Compute ranks manually from the sims object ───────────────────────────
-# rank_i = #{posterior draws < theta_tilde}  for each simulation
+p_ecdf_correct <- plot_ecdf_diff(sbc_correct$sbc_result)
+print(p_ecdf_correct + ggtitle("Correct sampler — ECDF difference (should hug 0)"))
 
-param_names <- names(sims$sims[[1]]$theta_tilde)   # "mu"
+# --- Rank-based diagnostic statistics ---
+cat("\n--- Correct sampler diagnostics ---\n")
 
-rank_matrix <- matrix(
-  NA_integer_,
-  nrow     = sims$n_sims,
-  ncol     = length(param_names),
-  dimnames = list(NULL, param_names)
+mean_test <- rank_mean_test(sbc_correct$sbc_result, L = n_draws)
+cat(sprintf("Rank mean:  observed = %.2f,  expected = %.2f,  diff = %.2f\n",
+            mean_test$observed_mean, mean_test$expected_mean, mean_test$difference))
+
+var_test <- rank_variance_test(sbc_correct$sbc_result, L = n_draws)
+cat(sprintf("Rank variance ratio (obs/exp): %.3f  (1.0 = perfect)\n",
+            var_test$ratio))
+
+ks_test <- rank_ks_test(sbc_correct$sbc_result, L = n_draws)
+cat(sprintf("KS test p-value: %.4f  (large p = no evidence of non-uniformity)\n",
+            ks_test$p.value))
+
+kl_div <- rank_kl_divergence(sbc_correct$sbc_result, L = n_draws)
+cat(sprintf("KL divergence: %.4f  (near 0 = empirical ≈ uniform)\n",
+            kl_div$KL_divergence))
+
+
+# =============================================================================
+# 3. SBC with the BROKEN posterior sampler
+# =============================================================================
+cat("\nRunning SBC with broken posterior sampler...\n")
+
+sbc_broken <- run_sbc(
+  prior_sampler      = my_prior_sampler,
+  likelihood_sampler = my_likelihood_sampler,
+  posterior_sampler  = broken_posterior_sampler,
+  n_sims             = n_sims,
+  n_obs              = n_obs,
+  n_draws            = n_draws,
+  prior_hyper_params = prior_hyper_params,
+  parallelize        = FALSE
 )
 
-for (i in seq_len(sims$n_sims)) {
-  theta_tilde <- sims$sims[[i]]$theta_tilde
-  draws       <- sims$sims[[i]]$draws          # [n_draws x n_params] matrix
-  for (p in param_names) {
-    rank_matrix[i, p] <- sum(draws[, p] < theta_tilde[p])
-  }
+p_broken <- plot_rank_hist(sbc_broken$sbc_result)
+print(p_broken + ggtitle("Broken sampler — rank histogram (should show a pattern)"))
+
+cat("\n--- Broken sampler diagnostics ---\n")
+
+mean_test_b <- rank_mean_test(sbc_broken$sbc_result, L = n_draws)
+cat(sprintf("Rank mean:  observed = %.2f,  expected = %.2f,  diff = %.2f\n",
+            mean_test_b$observed_mean, mean_test_b$expected_mean,
+            mean_test_b$difference))
+
+ks_test_b <- rank_ks_test(sbc_broken$sbc_result, L = n_draws)
+cat(sprintf("KS test p-value: %.6f  (small p = sampler is miscalibrated)\n",
+            ks_test_b$p.value))
+
+kl_div_b <- rank_kl_divergence(sbc_broken$sbc_result, L = n_draws)
+cat(sprintf("KL divergence: %.4f\n", kl_div_b$KL_divergence))
+
+
+# =============================================================================
+# 4. Geweke test for joint sampler validity
+# =============================================================================
+# The Geweke test compares the marginal distribution of test functions
+# under (a) direct draws (theta ~ prior, y ~ likelihood(theta)) versus
+# (b) the stationary Gibbs / MCMC chain.
+#
+# For the Normal-Normal model we have a closed-form posterior, so we
+# simulate the "Gibbs" chain by forward-sampling as well — the two
+# distributions should be identical and the QQ plots should fall on y = x.
+# -----------------------------------------------------------------------------
+
+cat("\nRunning Geweke QQ-plot check...\n")
+
+n_geweke <- 2000   # number of draws for each distribution
+
+# Direct draws: sample (theta, y) jointly from the prior-predictive
+direct_theta <- matrix(NA, nrow = n_geweke, ncol = 1,
+                       dimnames = list(NULL, "mu"))
+direct_y     <- matrix(NA, nrow = n_geweke, ncol = n_obs)
+
+for (i in seq_len(n_geweke)) {
+  theta_i           <- my_prior_sampler(prior_hyper_params)
+  direct_theta[i, ] <- theta_i
+  direct_y[i, ]     <- my_likelihood_sampler(n_obs, theta_i)
 }
 
-cat("Rank summary for 'mu':\n")
-print(summary(rank_matrix[, "mu"]))
-cat("\n")
+# "Gibbs" draws: same procedure here (both should match marginals)
+# In a real Gibbs scenario you would run your MCMC chain here.
+gibbs_theta <- matrix(NA, nrow = n_geweke, ncol = 1,
+                      dimnames = list(NULL, "mu"))
+gibbs_y     <- matrix(NA, nrow = n_geweke, ncol = n_obs)
 
-# ── 6. Wrap ranks in an SBC_results-like object expected by the test fns ──────
-# The test functions check  inherits(results, "SBC_results")  and read
-# results$stats$rank, so we construct a minimal compatible object.
-
-make_sbc_results <- function(ranks_vec) {
-  structure(
-    list(stats = data.frame(rank = ranks_vec)),
-    class = "SBC_results"
-  )
+for (i in seq_len(n_geweke)) {
+  theta_i          <- my_prior_sampler(prior_hyper_params)
+  gibbs_theta[i, ] <- theta_i
+  gibbs_y[i, ]     <- my_likelihood_sampler(n_obs, theta_i)
 }
 
-L <- sims$n_draws   # number of posterior draws = upper bound of rank
+direct_draws <- list(theta = direct_theta, y = direct_y)
+gibbs_draws  <- list(theta = gibbs_theta,  y = gibbs_y)
 
-results_mu <- make_sbc_results(rank_matrix[, "mu"])
-
-# ── 7. Run the diagnostic tests ───────────────────────────────────────────────
-
-tests <- list(
-  mean     = rank_mean_test,
-  variance = rank_variance_test,
-  ks       = rank_ks_test,
-  kl       = rank_kl_divergence
+# Test functions: scalar summaries of (theta, y) to compare
+test_fns <- make_test_functions(
+  mu_identity = function(theta, y) theta["mu"],
+  mu_sq       = function(theta, y) theta["mu"]^2,
+  y_mean      = function(theta, y) mean(y),
+  log_like    = function(theta, y)
+    sum(dnorm(y, mean = theta["mu"],
+              sd   = prior_hyper_params$sigma, log = TRUE))
 )
 
-test_output <- run_tests(results_mu, L = L, tests = tests)
-
-# ── 8. Report results ─────────────────────────────────────────────────────────
-
-cat("═══════════════════════════════════════\n")
-cat("  SBC Diagnostic Results  —  mu\n")
-cat("═══════════════════════════════════════\n\n")
-
-cat("── Mean test ──\n")
-cat(sprintf("  Observed mean : %.3f\n", test_output$mean$observed_mean))
-cat(sprintf("  Expected mean : %.3f\n", test_output$mean$expected_mean))
-cat(sprintf("  Difference    : %+.3f\n\n", test_output$mean$difference))
-
-cat("── Variance test ──\n")
-cat(sprintf("  Observed var  : %.3f\n", test_output$variance$observed_variance))
-cat(sprintf("  Expected var  : %.3f\n", test_output$variance$expected_variance))
-cat(sprintf("  Ratio         : %.3f  (1.0 = perfect)\n\n",
-            test_output$variance$ratio))
-
-cat("── KS test ──\n")
-cat(sprintf("  D statistic   : %.4f\n", test_output$ks$statistic))
-cat(sprintf("  p-value       : %.4f  (%s)\n\n",
-            test_output$ks$p.value,
-            ifelse(test_output$ks$p.value > 0.05, "PASS", "FAIL")))
-
-cat("── KL divergence ──\n")
-cat(sprintf("  KL(obs||unif) : %.4f  (0 = perfect)\n\n",
-            test_output$kl$KL_divergence))
-
-# ── 9. Quick rank histogram ───────────────────────────────────────────────────
-
-cat("── Rank histogram (mu) ──\n")
-hist(
-  rank_matrix[, "mu"],
-  breaks = 20,
-  main   = "SBC Rank Histogram — mu",
-  xlab   = paste0("Rank  (0–", L, ")"),
-  col    = "steelblue",
-  border = "white"
+# QQ plots: points should lie on the y = x diagonal
+geweke_plot(
+  direct_draws   = direct_draws,
+  gibbs_draws    = gibbs_draws,
+  test_functions = test_fns
 )
-abline(h = sims$n_sims / 20, col = "red", lty = 2, lwd = 2)   # expected flat line
-legend("topright", legend = "Expected (uniform)", col = "red", lty = 2, lwd = 2)
+title(main = "Geweke QQ plots — correct sampler (points should lie on y = x)",
+      outer = TRUE, line = -1)
 
 
-#NOTE: CHANGE ME WHEN THE PACKAGE IS COMPLETE SO THAT THE EXAMPLE IS ACTUALY INDICATIVE OF WHAT THE CODE DOES.
+# =============================================================================
+# 5. Accessing raw results for custom analyses
+# =============================================================================
+# The object returned by run_sbc() exposes the full SBC machinery.
+
+# Posterior draws for simulation 1  (n_draws x n_params matrix)
+post_draws_sim1 <- sbc_correct$sbc_result$fits[[1]]
+cat("\nFirst 5 posterior draws for mu (simulation 1):\n")
+print(head(post_draws_sim1, 5))
+
+# True parameter value used in simulation 1
+theta_tilde_sim1 <- sbc_correct$dataset$variables[1, ]
+cat(sprintf("\nTrue mu in simulation 1: %.4f\n", theta_tilde_sim1$mu))
+
+# Observed data for simulation 1
+y_sim1 <- sbc_correct$dataset$generated[[1]]$y
+cat(sprintf("Data summary — mean: %.4f, sd: %.4f\n",
+            mean(y_sim1), sd(y_sim1)))

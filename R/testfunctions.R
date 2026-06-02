@@ -1,11 +1,3 @@
-#testfunctions
-
-#quants <- derived_quantities(
-#  product = mu * sigmasq,
-#  log_like = sum(dnorm(y, mean = mu, sd = sqrt(sigmasq), log = TRUE)),
-#)
-#
-
 #' We require that the user gives test functions inside a NAMED list.
 #' Something like:
 #' test_fns <- list(
@@ -14,6 +6,9 @@
 #'  log_like = function(theta, y) sum(dnorm(y, theta["mu"],
 #'                                sqrt(theta["sigmasq"]), log = TRUE))
 #')
+#'
+
+#FOR BOTH GEWEKE AND SBC:
 
 make_test_functions <- function(...) {
   fns <- list(...)
@@ -43,6 +38,10 @@ make_test_functions <- function(...) {
 #'  log_like = function(theta, y) sum(dnorm(y, theta["mu"],
 #'                                    sqrt(theta["sigmasq"]), log = TRUE))
 #')
+#'
+
+#===============================================================================
+#FOR GEWKE ONLY (might delete later):
 
 run_geweke_tests <- function(test_fns, theta_matrix, y_matrix) {
 
@@ -66,6 +65,9 @@ run_geweke_tests <- function(test_fns, theta_matrix, y_matrix) {
     })
   do.call(rbind, results)
 }
+
+#===============================================================================
+#FOR SBC ONLY:
 
 #' Test functions for SBC. We recompute ranks manually because the original
 #'implementation in the SBC package was slow.

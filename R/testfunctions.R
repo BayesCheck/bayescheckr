@@ -4,6 +4,21 @@
 #  product = mu * sigmasq,
 #  log_like = sum(dnorm(y, mean = mu, sd = sqrt(sigmasq), log = TRUE)),
 #)
+#
+
+#' Run Tests
+#'
+#' Test function from users input, ran all at once.
+#' @param results the res object
+#' @param L number of posterior draws
+#' @param test
+run_tests <- function(results, L, tests) {
+  lapply(
+    tests,
+    function(f) f(results, L)
+  )
+}
+
 
 
 #' Rank Mean Test

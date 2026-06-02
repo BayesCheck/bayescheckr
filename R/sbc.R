@@ -84,6 +84,44 @@ run_sbc <- function(prior_sampler,
 #' result$dataset$generated[[i]]$y      # y vector for simulation i
 #' result$sbc_result$fits[[i]]          # n_draws x n_params posterior draws for simulation i
 
+#===============================================================================
+#TEST FUNCTIONS STUFF
+#===============================================================================
+
+.ranks_to_sbc_results <- function(ranked) {
+
+  # build the minimal stats dataframe the SBC plotting functions need
+  n_sims   <- ranked$n_sims
+  n_tests  <- ncol(ranked$ranks)
+
+  stats <- data.frame(
+    sim_id   = rep(seq_len(n_sims), each = n_tests),
+    variable = rep(colnames(ranked$ranks), times = n_sims),
+    rank     = as.vector(t(ranked$ranks)),
+    max_rank = ranked$n_draws
+  )
+
+  # bare minimum SBC_results shell — just enough for plotting
+  structure(
+    list(
+      stats               = stats,
+      fits                = vector("list", n_sims),
+      backend_diagnostics = NULL,
+      default_diagnostics = data.frame(sim_id = seq_len(n_sims)),
+      outputs             = vector("list", n_sims),
+      messages            = vector("list", n_sims),
+      warnings            = vector("list", n_sims),
+      errors              = vector("list", n_sims)
+    ),
+    class = "SBC_results"
+  )
+}
+
+run_sbc_diagnostics <- function(ranked) {
+  fake_res <- .ranks_to_sbc_results(ranked)
+  SBC::plot_rank_hist(fake_res)
+  SBC::plot_ecdf_diff(fake_res)
+}
 
 
 

@@ -3,21 +3,39 @@
 \name{all_geweke_tests}
 \alias{all_geweke_tests}
 \title{The user calls it like:
-test_fns <- make_test_functions(
-mu_sq    = function(theta, y) theta\link{"mu"}^2,
-product  = function(theta, y) theta\link{"mu"} * theta\link{"sigmasq"},
-log_like = function(theta, y) sum(dnorm(y, theta\link{"mu"},
-sqrt(theta\link{"sigmasq"}), log = TRUE))
-)}
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{test_fns <- make_test_functions(
+ mu_sq    = function(theta, y) theta["mu"]^2,
+ product  = function(theta, y) theta["mu"] * theta["sigmasq"],
+ log_like = function(theta, y) sum(dnorm(y, theta["mu"],
+                                   sqrt(theta["sigmasq"]), log = TRUE))
+)
+```r
+
+["mu"]: R:\%22mu\%22
+["mu"]: R:\%22mu\%22
+["sigmasq"]: R:\%22sigmasq\%22
+["mu"]: R:\%22mu\%22
+["sigmasq"]: R:\%22sigmasq\%22
+}\if{html}{\out{</div>}}}
 \usage{
 all_geweke_tests(direct_draws, gibbs_draws, test_functions)
 }
 \description{
 The user calls it like:
-test_fns <- make_test_functions(
-mu_sq    = function(theta, y) theta\link{"mu"}^2,
-product  = function(theta, y) theta\link{"mu"} * theta\link{"sigmasq"},
-log_like = function(theta, y) sum(dnorm(y, theta\link{"mu"},
-sqrt(theta\link{"sigmasq"}), log = TRUE))
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{test_fns <- make_test_functions(
+ mu_sq    = function(theta, y) theta["mu"]^2,
+ product  = function(theta, y) theta["mu"] * theta["sigmasq"],
+ log_like = function(theta, y) sum(dnorm(y, theta["mu"],
+                                   sqrt(theta["sigmasq"]), log = TRUE))
 )
+```r
+
+["mu"]: R:\%22mu\%22
+["mu"]: R:\%22mu\%22
+["sigmasq"]: R:\%22sigmasq\%22
+["mu"]: R:\%22mu\%22
+["sigmasq"]: R:\%22sigmasq\%22
+}\if{html}{\out{</div>}}
 }

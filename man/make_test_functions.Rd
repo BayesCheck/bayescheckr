@@ -2,24 +2,18 @@
 % Please edit documentation in R/testfunctions.R
 \name{make_test_functions}
 \alias{make_test_functions}
-\title{We require that the user gives test functions inside a NAMED list.
-Something like:
-test_fns <- list(
-mu_sq = function(theta, y) theta\link{"mu"}^2,
-product = function(theta, y) theta\link{"mu"} * theta\link{"sigmasq"},
-log_like = function(theta, y) sum(dnorm(y, theta\link{"mu"},
-sqrt(theta\link{"sigmasq"}), log = TRUE))
-)}
+\title{We require that the user gives test functions inside a NAMED list.}
 \usage{
 make_test_functions(...)
 }
 \description{
-We require that the user gives test functions inside a NAMED list.
-Something like:
-test_fns <- list(
-mu_sq = function(theta, y) theta\link{"mu"}^2,
-product = function(theta, y) theta\link{"mu"} * theta\link{"sigmasq"},
-log_like = function(theta, y) sum(dnorm(y, theta\link{"mu"},
-sqrt(theta\link{"sigmasq"}), log = TRUE))
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{test_fns <- make_test_functions(
+  mu_sq = function(theta, y) theta["mu"]^2,
+  product = function(theta, y) theta["mu"] * theta["sigmasq"],
+  log_like = function(theta, y)
+    sum(dnorm(y, theta["mu"],
+              sqrt(theta["sigmasq"]),
+              log = TRUE))
 )
+}\if{html}{\out{</div>}}
 }

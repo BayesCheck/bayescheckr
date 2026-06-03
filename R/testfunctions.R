@@ -1,12 +1,15 @@
 #' We require that the user gives test functions inside a NAMED list.
-#' Something like:
-#' test_fns <- list(
-#'  mu_sq = function(theta, y) theta["mu"]^2,
-#'  product = function(theta, y) theta["mu"] * theta["sigmasq"],
-#'  log_like = function(theta, y) sum(dnorm(y, theta["mu"],
-#'                                sqrt(theta["sigmasq"]), log = TRUE))
-#')
 #'
+#' ```r
+#' test_fns <- make_test_functions(
+#'   mu_sq = function(theta, y) theta["mu"]^2,
+#'   product = function(theta, y) theta["mu"] * theta["sigmasq"],
+#'   log_like = function(theta, y)
+#'     sum(dnorm(y, theta["mu"],
+#'               sqrt(theta["sigmasq"]),
+#'               log = TRUE))
+#' )
+#' ```
 
 #FOR BOTH GEWEKE AND SBC:
 

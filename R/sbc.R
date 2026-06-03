@@ -10,7 +10,7 @@ make_backend <- function(posterior_sampler, n_draws,
   )
 }
 #' @export
-SBC_fit_bayescheckr_backend <- function(backend, generated, cores){
+SBC_fit.bayescheckr_backend <- function(backend, generated, cores){
   res_raw <- backend$sampling_func(
     ndraws = backend$ndraws,
     y = generated$y,
@@ -62,7 +62,7 @@ run_sbc <- function(prior_sampler,
   if (parallelize == TRUE) {
     future::plan(future::multisession)
     on.exit(future::plan(future::sequential))
-    globals <- c("SBC_fit_bayescheckr_backend")
+    globals <- c("SBC_fit.bayescheckr_backend")
     res <- SBC::compute_SBC(dataset, backend, globals = globals)
   } else {
     res <- SBC::compute_SBC(dataset, backend)

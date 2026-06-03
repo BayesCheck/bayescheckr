@@ -10,7 +10,7 @@ make_backend <- function(posterior_sampler, n_draws,
   )
 }
 #' @export
-SBC_fit_bayescheckr_backend <- function(backend, generated, cores){
+SBC_fit.bayescheckr_backend <- function(backend, generated, cores){
   res_raw <- backend$sampling_func(
     ndraws = backend$ndraws,
     y = generated$y,

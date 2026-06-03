@@ -41,29 +41,65 @@ make_test_functions <- function(...) {
 #'
 
 #===============================================================================
-#FOR GEWKE ONLY (might delete later):
+#FOR GEWEKE ONLY (might delete later):
 
-run_geweke_tests <- function(test_fns, theta_matrix, y_matrix) {
+all_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
 
-  #theta matrix: n_draws x n_params (either direct or MCMC draws)
-  #y_matrix    : n_draws x n_obs
+  #allocate storage for results: 2 stats x n tests - same as testfunctions.R
+  stats <- c("statistic", "p_value")
+  tests <- c("Geweke", "KS", "Convergence")
 
-  results <- lapply(names(test_fns), function(nm) {
-    fn <- test_fns[[nm]]
+  results_matrix <- matrix(NA, nrow = 6, ncol = length(test_functions),
+                           dimnames =
+                             list(
+                               #rownames
+                               c(paste("Geweke", stats),
+                                 paste("KS", stats),
+                                 paste("Convergence", stats)),
+                               #colnames
+                               names(test_functions)
+                             ))
 
-    #apply test function to each row (each draw):
-    values <- sapply(seq_len(nrow(theta_matrix)), function(i) {
-      fn(theta = theta_matrix[i, ], y = y_matrix[i, ])
-    })
+  #intentionally copying naming conventions from recompute_ranks()
+  #to be consistent
 
-    data.frame(
-      test_function = nm,
-      values = values
+  for (nm in names(test_functions)) {
+    fn <- test_functions[[nm]]
 
-    )
+    # apply test function to get scalar per draw
+    g_mc <- apply(direct_draws$theta, 1, fn)
+    g_sc <- apply(gibbs_draws$theta,  1, fn)
 
-    })
-  do.call(rbind, results)
+    #Geweke test: first 2 rows --
+
+    #calculate: using test function written above, functions already applied
+    gw <- geweke_test(g_mc, g_sc)
+
+    #add results
+    results_matrix["Geweke statistic", nm] <- gw$stat
+    results_matrix["Geweke p_value",   nm] <- gw$p_value
+
+    #KS test: next 2 rows --
+
+    #calculate: apply test function first, then pass resulting vectors
+    ks <- stats::ks.test(g_mc, g_sc)
+
+    #add results
+    results_matrix["KS statistic", nm] <- ks$statistic
+    results_matrix["KS p_value",   nm] <- ks$p.value
+
+    #MCMC convergence test: last 2 rows --
+
+    #calculate: geweke.diag takes 1 mcmc chain object, using only Gibbs
+    gibbs_chain <- coda::as.mcmc(g_sc)
+    conv        <- coda::geweke.diag(gibbs_chain)
+
+    #add results
+    results_matrix["Convergence statistic", nm] <- as.numeric(conv$z)
+    results_matrix["Convergence p_value",   nm] <- 2 * pnorm(-abs(conv$z))
+  }
+
+  return(data.frame(results_matrix))
 }
 
 #===============================================================================

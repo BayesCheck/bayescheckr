@@ -62,7 +62,7 @@ run_sbc <- function(prior_sampler,
   if (parallelize == TRUE) {
     future::plan(future::multisession)
     on.exit(future::plan(future::sequential))
-    globals <- c("SBC_fit_bayescheckr_backend")
+    globals <- c("SBC_fit.bayescheckr_backend")
     res <- SBC::compute_SBC(dataset, backend, globals = globals)
   } else {
     res <- SBC::compute_SBC(dataset, backend)

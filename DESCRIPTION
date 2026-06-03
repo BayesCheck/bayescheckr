@@ -2,10 +2,12 @@ Package: bayescheckr
 Title: What the Package Does (One Line, Title Case)
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+    person("Lance", "Browne", "lance.browne@duke.edu", role = c("aut", "cre")),
+    person("Rafael", "Mautner", "rafael.mautner@duke.edu", role = c("aut", "cre")),
+    person("Trisha", "Iyer", "trisha.iyer@duke.edu", role = c("aut", "cre"))
+Description: Tools for validating posterior samplers using 
+    Geweke joint distribution tests and simulation-based calibration (SBC)
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 8.0.0.9000
@@ -16,7 +18,8 @@ Imports:
     tidyverse,
     ggplot2,
     stats,
-    coda
+    coda,
+    mvtnorm
 Remotes:
     hyunjimoon/SBC
 

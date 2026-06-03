@@ -13,7 +13,7 @@ source("R/sbc.R")
 ```
 
 
-Taken directly from `tutotial_bayes_gibbs_sbc`:
+Taken directly from `tutorial_bayes_gibbs_sbc`:
 
 ```{r}
 #| label: other-samplers
@@ -163,26 +163,26 @@ In conclusion, the user workflow is as follows:
 
 1. You fit the model ONCE.
 
-  result <- run_SBC(...)
+  `result <- run_SBC(...)`
   
 2. Plot baseline parameters - use SBC directly from the package.
 
-  SBC::plot_rank_hist(result$sbc_result)
-  SBC::plot_ecdf(result$sbc_result)
-  SBC::plot_ecdf_diff(result$sbc_result)
+  `SBC::plot_rank_hist(result$sbc_result)`
+  `SBC::plot_ecdf(result$sbc_result)`
+  `SBC::plot_ecdf_diff(result$sbc_result)`
   
 3. Define test functions
 
-  test_fns <- make_test_functions(...)
+  `test_fns <- make_test_functions(...)`
   
 4. Recompute ranks, change into appropriate format, and plot
 
-  ranked <- recompute_ranks(result, test_fns)
+  `ranked <- recompute_ranks(result, test_fns)`
+  `ranked_res <- .ranks_to_sbc_results(ranks_test)`
   
-  ranked_res <- .ranks_to_sbc_results(ranks_test)
-  
-  SBC::plot_rank_hist(ranked_res)
-  SBC other plots, etc.
+  `SBC::plot_rank_hist(ranked_res)`
+  `SBC::plot_ecdf(ranked_res)`
+  `SBC::plot_ecdf_diff(ranked_res)`
   
   
 

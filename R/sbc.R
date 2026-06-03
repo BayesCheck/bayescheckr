@@ -78,16 +78,14 @@ run_sbc <- function(prior_sampler,
 }
 
 #' A full picture of what run_sbc() returns:
+#' ```r
 #' result <- run_sbc(...)
 #'
 #' result$sbc_result                    # native SBC_results, use with SBC:: functions
 #' result$dataset$variables             # n_sims x n_params matrix of theta_tilde draws
 #' result$dataset$generated[[i]]$y      # y vector for simulation i
 #' result$sbc_result$fits[[i]]          # n_draws x n_params posterior draws for simulation i
-
-#===============================================================================
-#TEST FUNCTIONS STUFF
-#===============================================================================
+#' ```r
 #' @export
 ranks_to_sbc_results <- function(ranked) {
 

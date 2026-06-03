@@ -35,13 +35,14 @@ make_test_functions <- function(...) {
 }
 
 #' The user calls it like:
+#' ```r
 #' test_fns <- make_test_functions(
 #'  mu_sq    = function(theta, y) theta["mu"]^2,
 #'  product  = function(theta, y) theta["mu"] * theta["sigmasq"],
 #'  log_like = function(theta, y) sum(dnorm(y, theta["mu"],
 #'                                    sqrt(theta["sigmasq"]), log = TRUE))
 #')
-#'
+#' ```r
 
 #===============================================================================
 #FOR GEWEKE ONLY (might delete later):

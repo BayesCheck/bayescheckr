@@ -106,11 +106,11 @@ res <- run_sbc(
   prior_sampler      = prior_sampler,
   likelihood_sampler = likelihood_sampler,
   posterior_sampler  = posterior_sampler,
-  n_sims             = 1000,        # small for testing
+  n_sims             = 500,        # small for testing
   n_obs              = 50,
-  n_draws            = 1000,        # small for testing
+  n_draws            = 500,        # small for testing
   prior_hyper_params = prior_hyper_params,
-  parallelize        = FALSE
+  parallelize        = TRUE
 )
 ```
 ```{r}

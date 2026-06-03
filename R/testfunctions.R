@@ -46,7 +46,7 @@ make_test_functions <- function(...) {
 
 #===============================================================================
 #FOR GEWEKE ONLY (might delete later):
-
+#' @export
 all_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
 
   #allocate storage for results: 2 stats x n tests - same as testfunctions.R

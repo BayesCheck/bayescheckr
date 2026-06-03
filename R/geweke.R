@@ -16,6 +16,7 @@ library(tidyverse)
 #' JASA paper about "Getting it right."
 
 #successive conditional: sc
+#' @export
 geweke_sc_draws <- function(prior_sampler,
                                   likelihood_sampler,
                                   posterior_sampler,
@@ -100,6 +101,7 @@ geweke_sc_draws <- function(prior_sampler,
 
 #using SBC to speed up my joint sampler
 #marginal conditional: mc
+#' @export
 geweke_mc_draws <- function(prior_sampler,
                                    likelihood_sampler,
                                    prior_hyper_params,
@@ -149,7 +151,7 @@ geweke_mc_draws <- function(prior_sampler,
 
 #' Now moving to test functions: difference in means testing (per Geweke 2004)
 #' and KS testing, for z-score comparison, among other tests
-
+#' @export
 geweke_test <- function(g_mc, g_sc) { #input: vectors, length = n_draws
 
   #get terms for test statistics --

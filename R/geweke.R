@@ -87,7 +87,7 @@ geweke_sc_draws <- function(prior_sampler,
   #pivot to wide format: 1 row/simulation
 
   draws_matrix_wide <- draws_matrix |>
-    group_by(sim_id) |>
+    dplyr::group_by(sim_id) |>
     tidyr::pivot_wider(names_from = variable, values_from = simulated_value)
 
   #return final object

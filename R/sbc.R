@@ -1,4 +1,5 @@
-.make_backend <- function(posterior_sampler, n_draws,
+#' @export
+make_backend <- function(posterior_sampler, n_draws,
                           prior_hyper_params, param_names) {
   structure(
     list(sampling_func = posterior_sampler,
@@ -8,8 +9,8 @@
     class = "bayescheckr_backend"
   )
 }
-
-SBC_fit.bayescheckr_backend <- function(backend, generated, cores){
+#' @export
+SBC_fit_bayescheckr_backend <- function(backend, generated, cores){
   res_raw <- backend$sampling_func(
     ndraws = backend$ndraws,
     y = generated$y,
@@ -18,8 +19,8 @@ SBC_fit.bayescheckr_backend <- function(backend, generated, cores){
   colnames(res_raw) <- backend$param_names
   posterior::as_draws_matrix(res_raw)
 }
-
-.make_generator_single <- function(prior_sampler, likelihood_sampler, n_obs,
+#' @export
+make_generator_single <- function(prior_sampler, likelihood_sampler, n_obs,
                                    prior_hyper_params) {
   function() {
     theta <- prior_sampler(prior_hyper_params)
@@ -33,7 +34,7 @@ SBC_fit.bayescheckr_backend <- function(backend, generated, cores){
 }
 
 #5. The main entry point.
-
+#' @export
 run_sbc <- function(prior_sampler,
                     likelihood_sampler,
                     posterior_sampler,
@@ -48,20 +49,20 @@ run_sbc <- function(prior_sampler,
 
   #2. Build the generator and dataset
   generator <- SBC::SBC_generator_function(
-    .make_generator_single(prior_sampler, likelihood_sampler, n_obs,
+    make_generator_single(prior_sampler, likelihood_sampler, n_obs,
                            prior_hyper_params)
   )
   dataset <- SBC::generate_datasets(generator, n_sims)
 
   #3. Build the backend
-  backend <- .make_backend(posterior_sampler, n_draws, prior_hyper_params,
+  backend <- make_backend(posterior_sampler, n_draws, prior_hyper_params,
                            param_names)
 
   #4. Run SBC, maybe use parallelization
   if (parallelize == TRUE) {
     future::plan(future::multisession)
     on.exit(future::plan(future::sequential))
-    globals <- c("SBC_fit.bayescheckr_backend")
+    globals <- c("SBC_fit_bayescheckr_backend")
     res <- SBC::compute_SBC(dataset, backend, globals = globals)
   } else {
     res <- SBC::compute_SBC(dataset, backend)
@@ -77,18 +78,16 @@ run_sbc <- function(prior_sampler,
 }
 
 #' A full picture of what run_sbc() returns:
+#' ```r
 #' result <- run_sbc(...)
 #'
 #' result$sbc_result                    # native SBC_results, use with SBC:: functions
 #' result$dataset$variables             # n_sims x n_params matrix of theta_tilde draws
 #' result$dataset$generated[[i]]$y      # y vector for simulation i
 #' result$sbc_result$fits[[i]]          # n_draws x n_params posterior draws for simulation i
-
-#===============================================================================
-#TEST FUNCTIONS STUFF
-#===============================================================================
-
-.ranks_to_sbc_results <- function(ranked) {
+#' ```r
+#' @export
+ranks_to_sbc_results <- function(ranked) {
 
   # build the minimal stats dataframe the SBC plotting functions need
   n_sims   <- ranked$n_sims

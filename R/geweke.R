@@ -131,9 +131,18 @@ geweke_mc_draws <- function(prior_sampler,
                       lapply(data$generated, function(g) g$y)) #from Claude
   colnames(y_matrix) <- paste0("y", 1:n_obs)
 
-  direct_draws <- list(theta = theta_matrix,
-       y = y_matrix,
-       wide = cbind(theta_matrix, y_matrix))
+  wide_matrix <- cbind(theta_matrix, y_matrix)
+
+  draws_matrix <- data$variables |>
+    dplyr::mutate(sim_id = dplyr::row_number()) |>
+    tidyr::pivot_longer(cols = -sim_id,
+                        names_to = "variable",
+                        values_to = "simulated_value")
+
+  direct_draws <- list(draws = draws_matrix,
+                       theta = theta_matrix,
+                       y = y_matrix,
+                       wide = wide_matrix)
 
   return(direct_draws)
 }

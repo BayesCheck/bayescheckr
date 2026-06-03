@@ -13,7 +13,6 @@ Loading dependencies:
 library(SBC)
 ```
 
-
 Load our package:
 
 ```{r}
@@ -23,12 +22,12 @@ source("R/sbc.R")
 source("R/geweke.R")
 ```
 
-Taken directly from `tutorial_bayes_gibbs_sbc`:
+Let's define our three sampler functions (taken directly from `tutorial_bayes_gibbs_geweke`):
 
 ```{r}
-#| label: other-samplers
+#| label: correct-three-samplers
 
-prior_sampler <- function(prior_hyper_params){
+prior_sampler <- function(prior_hyper_params) {
   
   a0 <- prior_hyper_params[1]
   b0 <- prior_hyper_params[2]
@@ -41,10 +40,11 @@ prior_sampler <- function(prior_hyper_params){
   # independently simulate sigma2 ~ IG(a0, b0)
   sigma2 <- 1 / rgamma(1, a0, rate = b0)
 
-  return(c(mu = mu, sigmasq = sigma2))
+  return(c(mu, sigma2))
 }
 
-likelihood_sampler <- function(n, theta){
+likelihood_sampler <- function(n, theta) {
+  
   mu <- theta[1]
   sigma2 <- theta[2]
   
@@ -52,24 +52,11 @@ likelihood_sampler <- function(n, theta){
   
   return(y)
 }
-```
 
-And the posterior sampler:
-
-```{r}
-#| label: posterior-sampler
-
-posterior_sampler <- function(ndraws, 
-                              y, 
-                              prior_hyper_params, 
-                              init = c(mean(y), var(y))){
+posterior_sampler <- function(ndraws, y, prior_hyper_params,
+                              init = c(mean(y), var(y))) {
 
   n <- length(y)
-  sum.y <- sum(y)
-  a0 <- prior_hyper_params[1]
-  b0 <- prior_hyper_params[2]
-  mu0 <- prior_hyper_params[3]
-  v20 <- prior_hyper_params[4]
 
   # preallocate storage
   THETA <- matrix(0, nrow = ndraws, ncol = length(init))
@@ -82,7 +69,7 @@ posterior_sampler <- function(ndraws,
     # draw mean given variance and data
     
     v2n = 1 / (1/v20 + n/theta[2]) 
-    mun = v2n * (mu0/v20 + sum.y/theta[2])
+    mun = v2n * (mu0/v20 + sum(y)/theta[2])
     
     theta[1] <- rnorm(1, mun, sqrt(v2n))
     
@@ -103,41 +90,135 @@ posterior_sampler <- function(ndraws,
 }
 ```
 
+Now that we have these functions, we can use them to simulate the Bayesian joint distribution two ways:
+
+```{r}
+#| label: correct-direct-join-sampler
+
+joint_sampler_direct <- function(ndraws, n, prior_hyper_params,
+                                 init = c(0, 1)) {
+  
+  a0 <- prior_hyper_params[1]
+  b0 <- prior_hyper_params[2]
+  mu0 <- prior_hyper_params[3]
+  v20 <- prior_hyper_params[4]
+  
+  # preallocate storage for all of the draws
+  
+  direct_draws <- matrix(0, ndraws, n + 2)
+  colnames(direct_draws) <- c("mu", "sigma2", paste("y", 1:n, sep = ""))
+  
+  for(m in 1:ndraws){
+    
+    # simulate exactly from the prior
+    
+    theta <- prior_sampler(c(a0 = a0, b0 = b0, mu0 = mu0, v20 = v20))
+    
+    # simulate exactly from the likelihood given the draw from the prior
+    
+    y <- likelihood_sampler(n, theta)
+    
+    direct_draws[m, ] <- c(theta, y)
+    
+  }
+  
+  # return an iid sample from the joint distribution
+  
+  return(direct_draws)
+}
+
+```
+
+```{r}
+#| label: correct-gibbs-joint-sampler
+
+joint_sampler_gibbs <- function(ndraws, n, prior_hyper_params) {
+  
+  a0 <- prior_hyper_params[1]
+  b0 <- prior_hyper_params[2]
+  mu0 <- prior_hyper_params[3]
+  v20 <- prior_hyper_params[4]
+  
+  # preallocate storage for all of the draws
+  
+  gibbs_draws <- matrix(0, ndraws, n + 2)
+  colnames(gibbs_draws) <- c("mu", "sigma2", paste("y", 1:n, sep = ""))
+  
+  # initialize
+  
+  theta <- c(0, 1)
+  y <- runif(n)
+  
+  for(m in 1:ndraws){
+    
+    # simulate from the posterior using my sampler from above
+    
+    # the initialization is very important here!
+    theta <- posterior_sampler(1, y, c(a0 = a0, b0 = b0, mu0 = mu0, v20 = v20), 
+                               init = theta)
+    theta <- c(theta)
+    
+    # simulate data given the latest parameter values
+    
+    y <- likelihood_sampler(n, theta)
+    
+    gibbs_draws[m, ] <- c(theta, y)
+    
+  }
+  
+  return(gibbs_draws)
+}
+
+```
+
 Set hyperparameters:
 
 ```{r}
+#| label: define-hyperparams
+
 prior_hyper_params <- c(a0 = 1, b0 = 1, mu0 = 0, v20 = 1)
 ```
 
-Run it:
+Get our draws:
 
 ```{r}
-res <- run_sbc(
-  prior_sampler      = prior_sampler,
-  likelihood_sampler = likelihood_sampler,
-  posterior_sampler  = posterior_sampler,
-  n_sims             = 1000,        # small for testing
-  n_obs              = 50,
-  n_draws            = 1000,        # small for testing
-  prior_hyper_params = prior_hyper_params,
-  parallelize        = FALSE
-)
+#| label: run-geweke-functions
+
+#get the direct joint sampler using marginal-conditional
+
+direct_draws <- geweke_mc_draws(prior_sampler = prior_sampler, 
+                                likelihood_sampler = likelihood_sampler,
+                                posterior_sampler = posterior_sampler,
+                                prior_hyper_params = prior_hyper_params,
+                                n_draws = 100, n_obs = 2)
+
+#get gibbs joint sampler using successive-conditional
+
+gibbs_draws <- geweke_sc_draws(prior_sampler = prior_sampler, 
+                               likelihood_sampler = likelihood_sampler,
+                               posterior_sampler = posterior_sampler,
+                               prior_hyper_params = prior_hyper_params,
+                               n_draws = 100, n_obs = 2)
 ```
+
+We can see our draws in both a long format (compatible with SBC) or the standard format. 
 ```{r}
-SBC::plot_rank_hist(res$sbc_result)
+
+direct_draws$wide
+gibbs_draws$draws
 ```
-```{r}
-SBC::plot_ecdf_diff(res$sbc_result)
-```
-Ok great! Time to see if we can now use our package to run some test functions on it.
+
+Great! We have our draws. Now let's do all of our test functions to compare them quantitatively and qualitatively.
 
 ```{r}
 source("R/testfunctions.R")
 ```
 
-We need to define our test functions in a specific way. Like this:
+Time to define our test functions in a specific way. Like this:
 
 ```{r}
+#| label: define-test-functions
+
 test_fns <- make_test_functions(
   mu_sq = function(theta, y) theta["mu"]^2,
   product = function(theta, y) theta["mu"] * theta["sigmasq"],
@@ -148,24 +229,27 @@ test_fns <- make_test_functions(
 )
 ```
 
-Recompute ranks using our new function:
+Quantitative comparison using `all_geweke_tests`:
 
 ```{r}
-ranks_test <- recompute_ranks(res, test_fns)
-```
+#| label: geweke-test-chart
 
-We use the `.ranks_to_sbc_results` function as an intermediary: it formats our recomputed ranks `ranks_test` object into the shape expected by the SBC plot functions.
+all_geweke_tests(direct_draws = direct_draws,
+                 gibbs_draws = gibbs_draws,
+                 test_fns = test_fns)
+```
+The output is a table! Cute.
+
+For visual comparison, we made the outputs compatible with SBC plotting functions:
 
 ```{r}
-ranks_res <- .ranks_to_sbc_results(ranks_test)
+#| label: plot-geweke-on-sbc-graphs
+
+SBC::plot_rank_hist(...)
+SBC::plot_ecdf(...)
+SBC::plot_ecdf_diff(...)
 ```
 
-Then we can call the SBC plot functions on the appropriately formatted `ranks_res` object:
-
-```{r}
-SBC::plot_rank_hist(ranks_res)
-SBC::plot_ecdf_diff(ranks_res)
-```
 
 ## User workflow
 

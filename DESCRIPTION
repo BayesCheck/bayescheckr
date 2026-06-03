@@ -3,6 +3,7 @@ Title: What the Package Does (One Line, Title Case)
 Version: 0.0.0.9000
 Authors@R: 
     person("Lance", "Browne", "lance.browne@duke.edu", role = c("aut", "cre"))
+Maintainer: Lance Browne <lance.browne@duke.edu>
 Description: Tools for validating posterior samplers using 
     Geweke joint distribution tests and simulation-based calibration (SBC)
 License: MIT + file LICENSE

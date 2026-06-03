@@ -133,7 +133,7 @@ geweke_mc_draws <- function(prior_sampler,
 
   wide_matrix <- cbind(theta_matrix, y_matrix)
 
-  draws_matrix <- data$variables |>
+  draws_matrix <- data.frame(data$variables) |>
     dplyr::mutate(sim_id = dplyr::row_number()) |>
     tidyr::pivot_longer(cols = -sim_id,
                         names_to = "variable",

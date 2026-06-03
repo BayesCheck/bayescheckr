@@ -15,7 +15,8 @@ library(tidyverse)
 #' marginal-conditional sampling needed for comparison per John Geweke's 2004
 #' JASA paper about "Getting it right."
 
-geweke_suc_cond_draws <- function(prior_sampler,
+#successive conditional: sc
+geweke_sc_draws <- function(prior_sampler,
                                   likelihood_sampler,
                                   posterior_sampler,
                                   prior_hyper_params,
@@ -73,6 +74,15 @@ geweke_suc_cond_draws <- function(prior_sampler,
     }
   }
 
+  #add the rank column for plotting in SBC
+
+  draws_matrix$max_rank <- n_draws
+
+  draws_matrix$rank <- sapply(seq_len(nrow(draws_matrix)), function(i) {
+    post <- theta_matrix[, draws_matrix$variable[i]]
+    sum(post < as.numeric(draws_matrix$simulated_value[i]))
+  })
+
   #pivot to wide format: 1 row/simulation
 
   draws_matrix_wide <- draws_matrix |>
@@ -89,7 +99,8 @@ geweke_suc_cond_draws <- function(prior_sampler,
 }
 
 #using SBC to speed up my joint sampler
-geweke_marg_cond_draws <- function(prior_sampler,
+#marginal conditional: mc
+geweke_mc_draws <- function(prior_sampler,
                                    likelihood_sampler,
                                    prior_hyper_params,
                                    n_params, n_draws, n_obs) {
@@ -100,12 +111,19 @@ geweke_marg_cond_draws <- function(prior_sampler,
   generator_single <- function() {
     theta <- prior_sampler(prior_hyper_params)
     y <- likelihood_sampler(n_obs, theta)
+
+    #return list
+
+    list(
+      variables = as.list(theta),
+      generated = list(y = y)
+      )
   }
 
   #directly sample parameters and draws
   #need to parallelize for speed
   gen <- SBC::SBC_generator_function(generator_single)
-  SBC::generate_datasets(gen, n_draws) # = n_sims? check
+  data <- SBC::generate_datasets(gen, n_draws) # = n_sims? check
 
   #store
   theta_matrix <- as.matrix(data$variables)
@@ -145,7 +163,7 @@ geweke_test <- function(g_mc, g_sc) { #input: vectors, length = n_draws
   return(list(stat = test_stat, p_value = p_value))
 }
 
-all_the_tests <- function(direct_draws, gibbs_draws, test_functions) {
+all_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
 
   #allocate storage for results: 2 stats x n tests - same as testfunctions.R
   stats <- c("statistic", "p_value")
@@ -161,8 +179,6 @@ all_the_tests <- function(direct_draws, gibbs_draws, test_functions) {
                                #colnames
                                names(test_functions)
                              ))
-
-  #must return a matrix so I can save the following:
 
   #intentionally copying naming conventions from recompute_ranks()
   #to be consistent
@@ -184,7 +200,6 @@ all_the_tests <- function(direct_draws, gibbs_draws, test_functions) {
     results_matrix["Geweke p_value",   nm] <- gw$p_value
 
     #KS test: next 2 rows --
-    #!need to add stats dependency
 
     #calculate: apply test function first, then pass resulting vectors
     ks <- stats::ks.test(g_mc, g_sc)
@@ -194,8 +209,6 @@ all_the_tests <- function(direct_draws, gibbs_draws, test_functions) {
     results_matrix["KS p_value",   nm] <- ks$p.value
 
     #MCMC convergence test: last 2 rows --
-
-    #!need to add coda dependency package
 
     #calculate: geweke.diag takes 1 mcmc chain object, using only Gibbs
     gibbs_chain <- coda::as.mcmc(g_sc)

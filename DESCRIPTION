@@ -17,3 +17,6 @@ Imports:
     ggplot2,
     stats,
     coda
+Remotes:
+    hyunjimoon/SBC
+

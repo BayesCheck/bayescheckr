@@ -20,8 +20,8 @@
 #   1. Define samplers
 #   2. SBC — correct sampler  (ranks should be uniform)
 #   3. SBC — broken sampler   (ranks should be non-uniform)
-#   4. Geweke — correct Gibbs (QQ plots should hug y = x; all_the_tests passes)
-#   5. Geweke — broken Gibbs  (QQ plots off diagonal; all_the_tests fails)
+#   4. Geweke — correct Gibbs (QQ plots should hug y = x; all_geweke_tests passes)
+#   5. Geweke — broken Gibbs  (QQ plots off diagonal; all_geweke_tests fails)
 # =============================================================================
 
 set.seed(42)
@@ -84,7 +84,7 @@ broken_posterior_sampler <- function(ndraws, y, prior_hyper_params) {
 }
 
 # --- Test functions ---
-# Passed to both run_geweke_tests / all_the_tests (Geweke) and
+# Passed to both run_geweke_tests / all_geweke_tests (Geweke) and
 # recompute_ranks (SBC). Each must have exactly (theta, y) as arguments.
 test_fns <- make_test_functions(
   mu          = function(theta, y) theta["mu"],
@@ -191,18 +191,18 @@ cat(sprintf("  KL divergence: %.4f\n", kl_b$KL_divergence))
 # =============================================================================
 # 4. Geweke — correct Gibbs chain
 # =============================================================================
-# geweke_marg_cond_draws() samples (theta, y) jointly from the joint
+# geweke_mc_draws() samples (theta, y) jointly from the joint
 # prior-predictive — these are the "direct" (marginal-conditional) draws.
 #
-# geweke_suc_cond_draws() runs the Gibbs/MCMC chain: alternates between
+# geweke_sc_draws() runs the Gibbs/MCMC chain: alternates between
 # drawing theta | y from the posterior and y | theta from the likelihood.
 # Under a correct sampler the two arms share the same stationary distribution,
-# so all test-function QQ plots should fall on y = x and all_the_tests()
+# so all test-function QQ plots should fall on y = x and all_geweke_tests()
 # should return large p-values.
 # =============================================================================
 cat("\n=== Geweke: correct Gibbs ===\n")
 
-direct_correct <- geweke_marg_cond_draws(
+direct_correct <- geweke_mc_draws(
   prior_sampler      = my_prior_sampler,
   likelihood_sampler = my_likelihood_sampler,
   prior_hyper_params = prior_hyper_params,
@@ -211,7 +211,7 @@ direct_correct <- geweke_marg_cond_draws(
   n_obs              = n_obs
 )
 
-gibbs_correct <- geweke_suc_cond_draws(
+gibbs_correct <- geweke_sc_draws(
   prior_sampler      = my_prior_sampler,
   likelihood_sampler = my_likelihood_sampler,
   posterior_sampler  = correct_posterior_sampler,
@@ -231,25 +231,25 @@ title("Geweke QQ — correct sampler (should hug y = x)", outer = TRUE, line = -
 # 4b. run_geweke_tests(): scalar values per draw for each test function ------
 # Returns a long data.frame: columns test_function and values.
 # Useful if you want to build your own summaries or plots downstream.
-g_direct_vals <- run_geweke_tests(test_fns,
+g_direct_vals <- all_geweke_tests(test_fns,
                                   theta_matrix = direct_correct$theta,
                                   y_matrix     = direct_correct$y)
 
-g_gibbs_vals  <- run_geweke_tests(test_fns,
+g_gibbs_vals  <- all_geweke_tests(test_fns,
                                   theta_matrix = gibbs_correct$theta,
                                   y_matrix     = gibbs_correct$y)
 
 cat("run_geweke_tests() output (first 6 rows, direct arm):\n")
 print(head(g_direct_vals))
 
-# 4c. all_the_tests(): Geweke z-test + KS test + MCMC convergence -----------
+# 4c. all_geweke_tests(): Geweke z-test + KS test + MCMC convergence -----------
 # Returns a data.frame with rows:
 #   Geweke statistic / p_value
 #   KS statistic     / p_value
 #   Convergence statistic / p_value   (coda::geweke.diag on the Gibbs chain)
 # Columns = one per test function.
-cat("\n--- all_the_tests() output (correct sampler) ---\n")
-results_correct <- all_the_tests(
+cat("\n--- all_tests() output (correct sampler) ---\n")
+results_correct <- all_geweke_tests(
   direct_draws   = direct_correct,
   gibbs_draws    = gibbs_correct,
   test_functions = test_fns
@@ -270,7 +270,7 @@ cat("\n=== Geweke: broken Gibbs ===\n")
 # Direct arm is the same prior-predictive regardless of the sampler.
 # We can reuse direct_correct.
 
-gibbs_broken <- geweke_suc_cond_draws(
+gibbs_broken <- geweke_sc_draws(
   prior_sampler      = my_prior_sampler,
   likelihood_sampler = my_likelihood_sampler,
   posterior_sampler  = broken_posterior_sampler,
@@ -288,9 +288,9 @@ geweke_plot(
 title("Geweke QQ — broken sampler (deviations expected for y_mean, log_like)",
       outer = TRUE, line = -1)
 
-# 5b. all_the_tests() — expect small p-values for data-dependent functions
-cat("\n--- all_the_tests() output (broken sampler) ---\n")
-results_broken <- all_the_tests(
+# 5b. all_geweke_tests() — expect small p-values for data-dependent functions
+cat("\n--- all_tests() output (broken sampler) ---\n")
+results_broken <- all_tests(
   direct_draws   = direct_correct,
   gibbs_draws    = gibbs_broken,
   test_functions = test_fns

@@ -29,10 +29,10 @@ Let's define our three sampler functions (taken directly from `tutorial_bayes_gi
 
 prior_sampler <- function(prior_hyper_params) {
   
-  a0 <- prior_hyper_params[1]
-  b0 <- prior_hyper_params[2]
-  mu0 <- prior_hyper_params[3]
-  v20 <- prior_hyper_params[4]
+  a0 <- prior_hyper_params$a0
+  b0 <- prior_hyper_params$b0
+  mu0 <- prior_hyper_params$mu0
+  v20 <- prior_hyper_params$v20
   
   # simulate mu ~ N(mu0, v20)
   mu <- rnorm(1, mu0, sqrt(v20))
@@ -56,6 +56,10 @@ likelihood_sampler <- function(n, theta) {
 posterior_sampler <- function(ndraws, y, prior_hyper_params,
                               init = c(mean(y), var(y))) {
 
+  a0 <- prior_hyper_params$a0
+  b0 <- prior_hyper_params$b0
+  mu0 <- prior_hyper_params$mu0
+  v20 <- prior_hyper_params$v20
   n <- length(y)
 
   # preallocate storage
@@ -98,10 +102,10 @@ Now that we have these functions, we can use them to simulate the Bayesian joint
 joint_sampler_direct <- function(ndraws, n, prior_hyper_params,
                                  init = c(0, 1)) {
   
-  a0 <- prior_hyper_params[1]
-  b0 <- prior_hyper_params[2]
-  mu0 <- prior_hyper_params[3]
-  v20 <- prior_hyper_params[4]
+  a0 <- prior_hyper_params$a0
+  b0 <- prior_hyper_params$b0
+  mu0 <- prior_hyper_params$mu0
+  v20 <- prior_hyper_params$v20
   
   # preallocate storage for all of the draws
   
@@ -112,7 +116,7 @@ joint_sampler_direct <- function(ndraws, n, prior_hyper_params,
     
     # simulate exactly from the prior
     
-    theta <- prior_sampler(c(a0 = a0, b0 = b0, mu0 = mu0, v20 = v20))
+    theta <- prior_sampler(list(a0 = a0, b0 = b0, mu0 = mu0, v20 = v20))
     
     # simulate exactly from the likelihood given the draw from the prior
     
@@ -134,10 +138,10 @@ joint_sampler_direct <- function(ndraws, n, prior_hyper_params,
 
 joint_sampler_gibbs <- function(ndraws, n, prior_hyper_params) {
   
-  a0 <- prior_hyper_params[1]
-  b0 <- prior_hyper_params[2]
-  mu0 <- prior_hyper_params[3]
-  v20 <- prior_hyper_params[4]
+  a0 <- prior_hyper_params$a0
+  b0 <- prior_hyper_params$b0
+  mu0 <- prior_hyper_params$mu0
+  v20 <- prior_hyper_params$v20
   
   # preallocate storage for all of the draws
   
@@ -154,7 +158,7 @@ joint_sampler_gibbs <- function(ndraws, n, prior_hyper_params) {
     # simulate from the posterior using my sampler from above
     
     # the initialization is very important here!
-    theta <- posterior_sampler(1, y, c(a0 = a0, b0 = b0, mu0 = mu0, v20 = v20), 
+    theta <- posterior_sampler(1, y, list(a0 = a0, b0 = b0, mu0 = mu0, v20 = v20), 
                                init = theta)
     theta <- c(theta)
     
@@ -176,7 +180,7 @@ Set hyperparameters:
 ```{r}
 #| label: define-hyperparams
 
-prior_hyper_params <- c(a0 = 1, b0 = 1, mu0 = 0, v20 = 1)
+prior_hyper_params <- list(a0 = 1, b0 = 1, mu0 = 0, v20 = 1)
 ```
 
 Get our draws:
@@ -188,12 +192,12 @@ Get our draws:
 
 direct_draws <- geweke_mc_draws(prior_sampler = prior_sampler, 
                                 likelihood_sampler = likelihood_sampler,
-                                posterior_sampler = posterior_sampler,
                                 prior_hyper_params = prior_hyper_params,
                                 n_draws = 100, n_obs = 2)
+```
 
 #get gibbs joint sampler using successive-conditional
-
+```{r}
 gibbs_draws <- geweke_sc_draws(prior_sampler = prior_sampler, 
                                likelihood_sampler = likelihood_sampler,
                                posterior_sampler = posterior_sampler,
@@ -204,7 +208,7 @@ gibbs_draws <- geweke_sc_draws(prior_sampler = prior_sampler,
 We can see our draws in both a long format (compatible with SBC) or the standard format. 
 ```{r}
 
-direct_draws$wide
+direct_draws$draws
 gibbs_draws$draws
 ```
 

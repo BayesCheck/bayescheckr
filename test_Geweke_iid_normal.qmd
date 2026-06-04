@@ -194,7 +194,7 @@ Get our draws:
 direct_draws <- geweke_mc_draws(prior_sampler = prior_sampler, 
                                 likelihood_sampler = likelihood_sampler,
                                 prior_hyper_params = prior_hyper_params,
-                                n_draws = 100, n_obs = 2)
+                                n_draws = 1e4, n_obs = 2)
 ```
 
 #get gibbs joint sampler using successive-conditional

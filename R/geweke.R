@@ -14,13 +14,14 @@
 #' JASA paper about "Getting it right."
 
 #successive conditional: sc
+
 #' @export
 geweke_sc_draws <- function(prior_sampler,
                             likelihood_sampler,
                             posterior_sampler,
-                            prior_hyper_params,
-                            n_draws,
                             n_obs,
+                            n_draws,
+                            prior_hyper_params,
                             n_burnin = 1000) {
 
   #get info about parameters
@@ -114,8 +115,9 @@ geweke_sc_draws <- function(prior_sampler,
 #' @export
 geweke_mc_draws <- function(prior_sampler,
                             likelihood_sampler,
+                            n_obs,
+                            n_draws,
                             prior_hyper_params,
-                            n_params, n_draws, n_obs,
                             parallelize = TRUE) {
 
   if (parallelize) {
@@ -173,7 +175,8 @@ geweke_mc_draws <- function(prior_sampler,
 #' Now moving to test functions: difference in means testing (per Geweke 2004)
 #' and KS testing, for z-score comparison, among other tests
 #' @export
-geweke_test <- function(g_mc, g_sc) { #input: vectors, length = n_draws
+geweke_test <- function(g_mc,
+                        g_sc) { #input: vectors, length = n_draws
 
   #get terms for test statistics --
 
@@ -196,7 +199,9 @@ geweke_test <- function(g_mc, g_sc) { #input: vectors, length = n_draws
 }
 
 #' @export
-tabulate_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
+tabulate_geweke_tests <- function(direct_draws,
+                                  gibbs_draws,
+                                  test_functions) {
 
   #allocate storage for results: 2 stats x n tests - same as testfunctions.R
   stats <- c("statistic", "p_value")
@@ -265,7 +270,9 @@ tabulate_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
 }
 
 #' @export
-plot_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
+plot_geweke_tests <- function(direct_draws,
+                              gibbs_draws,
+                              test_functions) {
 
   probs <- seq(0.05, 0.95, by = 0.05)
   n_fns <- length(test_functions)

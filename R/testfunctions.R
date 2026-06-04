@@ -10,9 +10,8 @@
 #'               log = TRUE))
 #' )
 #' ```
-
-#FOR BOTH GEWEKE AND SBC:
-
+#' for both geweke and sbc
+#' @export
 make_test_functions <- function(...) {
   fns <- list(...)
 
@@ -112,6 +111,7 @@ all_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
 #' Test functions for SBC. We recompute ranks manually because the original
 #'implementation in the SBC package was slow.
 #'@param result is created as `result <- run_sbc(...)`
+#' @export
 recompute_ranks <- function(result, test_fns) {
 
   n_sims <- length(result$sbc_result$fits)

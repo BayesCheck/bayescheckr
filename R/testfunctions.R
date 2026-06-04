@@ -1,16 +1,3 @@
-#' We require that the user gives test functions inside a NAMED list.
-#'
-#' ```r
-#' test_fns <- make_test_functions(
-#'   mu_sq = function(theta, y) theta["mu"]^2,
-#'   product = function(theta, y) theta["mu"] * theta["sigmasq"],
-#'   log_like = function(theta, y)
-#'     sum(dnorm(y, theta["mu"],
-#'               sqrt(theta["sigmasq"]),
-#'               log = TRUE))
-#' )
-#' ```
-#' for both geweke and sbc
 #' @export
 make_test_functions <- function(...) {
   fns <- list(...)
@@ -33,16 +20,6 @@ make_test_functions <- function(...) {
   structure(fns, class = "bayescheckr_tests")
 }
 
-#' The user calls it like:
-#' ```r
-#' test_fns <- make_test_functions(
-#'  mu_sq    = function(theta, y) theta["mu"]^2,
-#'  product  = function(theta, y) theta["mu"] * theta["sigmasq"],
-#'  log_like = function(theta, y) sum(dnorm(y, theta["mu"],
-#'                                    sqrt(theta["sigmasq"]), log = TRUE))
-#')
-#' ```r
-
 #===============================================================================
 #FOR GEWEKE ONLY (might delete later):
 #see `tabulate_geweke_tests()` in geweke.R
@@ -50,9 +27,6 @@ make_test_functions <- function(...) {
 #===============================================================================
 #FOR SBC ONLY:
 
-#' Test functions for SBC. We recompute ranks manually because the original
-#'implementation in the SBC package was slow.
-#'@param result is created as `result <- run_sbc(...)`
 #' @export
 recompute_ranks <- function(result, test_fns) {
 

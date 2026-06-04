@@ -194,7 +194,7 @@ Get our draws:
 direct_draws <- geweke_mc_draws(prior_sampler = prior_sampler, 
                                 likelihood_sampler = likelihood_sampler,
                                 prior_hyper_params = prior_hyper_params,
-                                n_draws = 100, n_obs = 2)
+                                n_draws = 1e4, n_obs = 2)
 ```
 
 #get gibbs joint sampler using successive-conditional
@@ -238,9 +238,6 @@ Quantitative comparison using `all_geweke_tests`:
 
 ```{r}
 #| label: geweke-test-chart
-
-print(nrow(direct_draws$theta))
-print(nrow(direct_draws$y))
 
 all_geweke_tests(direct_draws = direct_draws,
                  gibbs_draws = gibbs_draws,

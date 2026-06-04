@@ -147,7 +147,7 @@ ranks_test <- recompute_ranks(res, test_fns)
 We use the `.ranks_to_sbc_results` function as an intermediary: it formats our recomputed ranks `ranks_test` object into the shape expected by the SBC plot functions.
 
 ```{r}
-ranks_res <- .ranks_to_sbc_results(ranks_test)
+ranks_res <- ranks_to_sbc_results(ranks_test)
 ```
 
 Then we can call the SBC plot functions on the appropriately formatted `ranks_res` object:

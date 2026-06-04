@@ -1,29 +1,3 @@
-#' @import SBC
-NULL
-
-.make_backend <- function(posterior_sampler, n_draws,
-                          prior_hyper_params, param_names) {
-  structure(
-    list(sampling_func = posterior_sampler,
-         ndraws = n_draws,
-         prior_hyper_params = prior_hyper_params,
-         param_names = param_names),
-    class = "bayescheckr_backend"
-  )
-}
-
-#' @method SBC_fit bayescheckr_backend
-#' @export
-SBC_fit.bayescheckr_backend <- function(backend, generated, cores){
-  res_raw <- backend$sampling_func(
-    ndraws = backend$ndraws,
-    y = generated$y,
-    prior_hyper_params = backend$prior_hyper_params
-  )
-  colnames(res_raw) <- backend$param_names
-  posterior::as_draws_matrix(res_raw)
-}
-
 .make_generator_single <- function(prior_sampler, likelihood_sampler, n_obs,
                                    prior_hyper_params) {
   function() {
@@ -48,13 +22,6 @@ run_sbc <- function(prior_sampler,
                     prior_hyper_params,
                     parallelize = FALSE){
 
-  # register S3 method at call time, not load time
-  registerS3method(
-    "SBC_fit",
-    "bayescheckr_backend",
-    getFromNamespace("SBC_fit.bayescheckr_backend", "bayescheckr"),
-    envir = asNamespace("SBC")
-  )
 
   #0. Validate stuff:
   theta_test <- prior_sampler(prior_hyper_params)
@@ -74,16 +41,25 @@ run_sbc <- function(prior_sampler,
   )
   dataset <- SBC::generate_datasets(generator, n_sims)
 
-  #3. Build the backend
-  backend <- .make_backend(posterior_sampler, n_draws, prior_hyper_params,
-                           param_names)
+  #3. Change backend to evade S3 dispatch
+  backend <- SBC::SBC_backend_function(
+    func = function(generated) {
+      res_raw <- posterior_sampler(
+        ndraws             = n_draws,
+        y                  = generated$y,
+        prior_hyper_params = prior_hyper_params
+      )
+      colnames(res_raw) <- param_names
+      posterior::as_draws_matrix(res_raw)
+    }
+  )
 
   #4. Run SBC, maybe use parallelization
   if (parallelize == TRUE) {
     future::plan(future::multisession)
     on.exit(future::plan(future::sequential))
-    globals <- c("SBC_fit.bayescheckr_backend", ".make_backend",
-                 ".make_generator_single")
+    globals <- c("posterior_sampler", "n_draws",
+                 "prior_hyper_params", "param_names")
     res <- SBC::compute_SBC(dataset, backend, globals = globals)
   } else {
     res <- SBC::compute_SBC(dataset, backend)
@@ -98,7 +74,7 @@ run_sbc <- function(prior_sampler,
   )
 }
 
-#' Convert a bayescheckr_ranks object to an SBC_results object for plotting
+# Convert a bayescheckr_ranks object to an SBC_results object for plotting
 #' @export
 ranks_to_sbc_results <- function(ranked) {
 
@@ -128,4 +104,3 @@ ranks_to_sbc_results <- function(ranked) {
     class = "SBC_results"
   )
 }
-

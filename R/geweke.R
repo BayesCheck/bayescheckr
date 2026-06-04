@@ -16,10 +16,12 @@
 #successive conditional: sc
 #' @export
 geweke_sc_draws <- function(prior_sampler,
-                                  likelihood_sampler,
-                                  posterior_sampler,
-                                  prior_hyper_params,
-                                  n_draws, n_obs) {
+                            likelihood_sampler,
+                            posterior_sampler,
+                            prior_hyper_params,
+                            n_draws,
+                            n_obs,
+                            n_burnin = 1000) {
 
   #get info about parameters
 
@@ -51,6 +53,15 @@ geweke_sc_draws <- function(prior_sampler,
   #initialize
   theta <- prior_draw
   y <- runif(n_obs) #using user input
+
+  # burnin: run chain forward without storing
+  for (b in 1:n_burnin) {
+    theta <- posterior_sampler(ndraws = 1, y = y,
+                               prior_hyper_params = prior_hyper_params)
+    theta <- theta[1, ]
+    y     <- likelihood_sampler(n_obs, theta)
+  }
+  # then your existing loop follows unchanged
 
   for (m in 1:n_draws) {
     #simulate from the posterior
@@ -102,9 +113,15 @@ geweke_sc_draws <- function(prior_sampler,
 #marginal conditional: mc
 #' @export
 geweke_mc_draws <- function(prior_sampler,
-                                   likelihood_sampler,
-                                   prior_hyper_params,
-                                   n_params, n_draws, n_obs) {
+                            likelihood_sampler,
+                            prior_hyper_params,
+                            n_params, n_draws, n_obs,
+                            parallelize = TRUE) {
+
+  if (parallelize) {
+    future::plan(future::multisession)
+    on.exit(future::plan(future::sequential))
+  }
 
   #set up the generator function for SBC
 

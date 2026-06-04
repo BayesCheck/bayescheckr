@@ -105,7 +105,7 @@ Set hyperparameters and initialize other values of interest:
 prior_hyper_params <- list(a0 = 1, b0 = 1, mu0 = 0, v20 = 1)
 
 n_draws <- 1e4
-n_obs <- 2
+n_obs <- 10
 ```
 
 Get our draws:
@@ -138,10 +138,6 @@ gibbs_draws$draws
 ```
 
 Great! We have our draws. Now let's do all of our test functions to compare them quantitatively and qualitatively.
-
-```{r}
-source("R/testfunctions.R")
-```
 
 Time to define our test functions in a specific way. Like this:
 

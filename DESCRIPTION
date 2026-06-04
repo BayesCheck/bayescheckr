@@ -12,9 +12,9 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 8.0.0.9000
 Imports:
+    SBC,
     future,
     future.apply,
-    SBC,
     tidyverse,
     ggplot2,
     stats,

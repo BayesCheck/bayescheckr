@@ -48,6 +48,11 @@ run_sbc <- function(prior_sampler,
                     prior_hyper_params,
                     parallelize = FALSE){
 
+  # register S3 method at call time, not load time
+  registerS3method("SBC_fit", "bayescheckr_backend",
+                   SBC_fit.bayescheckr_backend,
+                   envir = asNamespace("SBC"))
+
   #0. Validate stuff:
   theta_test <- prior_sampler(prior_hyper_params)
   if (!is.numeric(theta_test))
@@ -120,11 +125,4 @@ ranks_to_sbc_results <- function(ranked) {
     class = "SBC_results"
   )
 }
-
-.onLoad <- function(libname, pkgname) {
-  registerS3method("SBC_fit", "bayescheckr_backend",
-                   SBC_fit.bayescheckr_backend,
-                   envir = asNamespace("SBC"))
-}
-
 

@@ -173,7 +173,7 @@ ranks_test <- recompute_ranks(linreg_result, test_fns)
 Convert it into "SBC format" using our intermediary function:
 
 ```{r}
-ranks_res <- .ranks_to_sbc_results(ranks_test)
+ranks_res <- ranks_to_sbc_results(ranks_test)
 ```
 
 And finally, visualize recomputed ranks for test functions:

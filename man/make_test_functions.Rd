@@ -16,4 +16,6 @@ make_test_functions(...)
               log = TRUE))
 )
 }\if{html}{\out{</div>}}
+
+for both geweke and sbc
 }

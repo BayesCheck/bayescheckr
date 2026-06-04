@@ -279,27 +279,6 @@ gibbs_broken <- geweke_sc_draws(
   n_obs              = n_obs
 )
 
-# 5a. QQ plots — should deviate from y = x for data-dependent test functions
-geweke_plot(
-  direct_draws   = direct_correct,   # reuse direct arm
-  gibbs_draws    = gibbs_broken,
-  test_functions = test_fns
-)
-title("Geweke QQ — broken sampler (deviations expected for y_mean, log_like)",
-      outer = TRUE, line = -1)
-
-# 5b. all_geweke_tests() — expect small p-values for data-dependent functions
-cat("\n--- all_tests() output (broken sampler) ---\n")
-results_broken <- all_tests(
-  direct_draws   = direct_correct,
-  gibbs_draws    = gibbs_broken,
-  test_functions = test_fns
-)
-print(results_broken)
-# Expect: Geweke and KS p-values near 0 for y_mean and log_like,
-#         since those functions depend on y which the broken sampler ignores.
-
-
 # =============================================================================
 # 6. Accessing raw internals for custom analyses
 # =============================================================================

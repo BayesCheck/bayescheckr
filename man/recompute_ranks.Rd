@@ -2,8 +2,24 @@
 % Please edit documentation in R/testfunctions.R
 \name{recompute_ranks}
 \alias{recompute_ranks}
-\title{Test functions for SBC. We recompute ranks manually because the original
-implementation in the SBC package was slow.}
+\title{The user calls it like:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{test_fns <- make_test_functions(
+ mu_sq    = function(theta, y) theta["mu"]^2,
+ product  = function(theta, y) theta["mu"] * theta["sigmasq"],
+ log_like = function(theta, y) sum(dnorm(y, theta["mu"],
+                                   sqrt(theta["sigmasq"]), log = TRUE))
+)
+```r
+Test functions for SBC. We recompute ranks manually because the original
+implementation in the SBC package was slow.
+
+["mu"]: R:\%22mu\%22
+["mu"]: R:\%22mu\%22
+["sigmasq"]: R:\%22sigmasq\%22
+["mu"]: R:\%22mu\%22
+["sigmasq"]: R:\%22sigmasq\%22
+}\if{html}{\out{</div>}}}
 \usage{
 recompute_ranks(result, test_fns)
 }
@@ -11,6 +27,22 @@ recompute_ranks(result, test_fns)
 \item{result}{is created as \code{result <- run_sbc(...)}}
 }
 \description{
+The user calls it like:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{test_fns <- make_test_functions(
+ mu_sq    = function(theta, y) theta["mu"]^2,
+ product  = function(theta, y) theta["mu"] * theta["sigmasq"],
+ log_like = function(theta, y) sum(dnorm(y, theta["mu"],
+                                   sqrt(theta["sigmasq"]), log = TRUE))
+)
+```r
 Test functions for SBC. We recompute ranks manually because the original
 implementation in the SBC package was slow.
+
+["mu"]: R:\%22mu\%22
+["mu"]: R:\%22mu\%22
+["sigmasq"]: R:\%22sigmasq\%22
+["mu"]: R:\%22mu\%22
+["sigmasq"]: R:\%22sigmasq\%22
+}\if{html}{\out{</div>}}
 }

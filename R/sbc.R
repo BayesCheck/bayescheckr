@@ -1,3 +1,6 @@
+#' @import SBC
+NULL
+
 .make_backend <- function(posterior_sampler, n_draws,
                           prior_hyper_params, param_names) {
   structure(

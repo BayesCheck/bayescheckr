@@ -1,26 +1,8 @@
----
-
-editor_options: 
-  markdown: 
-    wrap: 72
----
+------------------------------------------------------------------------
 
 # bayescheckr
 
-**bayescheckr** is an R package for validating Bayesian posterior samplers. It provides two complementary approaches — Simulation-Based Calibration (SBC) and the Geweke joint-distribution test — so you can be confident your sampler is drawing from the right posterior before you use it for inference.
-
-------------------------------------------------------------------------
-
-## Why use bayescheckr?
-
-A posterior sampler can look reasonable and still be wrong: the chain might converge, trace plots might look clean, and summary statistics might seem plausible, all while the sampler is systematically miscalibrated. bayescheckr catches these silent failures by testing the *joint distribution* of your sampler, not just its output on one dataset.
-
-The two tests address different failure modes:
-
-| Test | What it checks | What it catches |
-|------------------------|------------------------|------------------------|
-| **SBC** | Are posterior credible intervals calibrated across repeated datasets? | Over/under-confident posteriors, wrong likelihood, prior–posterior mismatch |
-| **Geweke** | Do direct draws and MCMC draws share the same marginal distribution? | Broken Gibbs updates, incorrect full conditionals, programming errors |
+**bayescheckr** is an R package for validating Bayesian posterior samplers. It several approaches so you can be confident your sampler is drawing from the right posterior before you use it for inference.
 
 ------------------------------------------------------------------------
 
@@ -170,23 +152,6 @@ print(results)
 | `Convergence statistic / p_value` | `coda::geweke.diag` on the Gibbs chain — checks internal chain convergence |
 
 Large p-values (\> 0.05) across all three indicate no evidence of miscalibration.
-
-------------------------------------------------------------------------
-
-## Catching a broken sampler
-
-To see what failure looks like, swap in a posterior that ignores the data:
-
-``` r
-broken_posterior <- function(ndraws, y, prior_hyper_params) {
-  matrix(rnorm(ndraws, prior_hyper_params$mu_0, prior_hyper_params$sigma_0),
-         ncol = 1, dimnames = list(NULL, "mu"))
-}
-```
-
-With SBC, ranks will pile up at the extremes (the true θ almost always falls outside the too-wide posterior), producing a U-shaped histogram and a near-zero KS p-value.
-
-With Geweke, `y_mean` and `log_like` test functions will diverge between the two arms because the broken Gibbs chain never learns from the data, while the direct arm reflects the full joint distribution.
 
 ------------------------------------------------------------------------
 

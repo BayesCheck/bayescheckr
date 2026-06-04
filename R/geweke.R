@@ -9,8 +9,6 @@
 # - SBC_generator_function
 # - generate_datasets
 
-library(tidyverse)
-
 #' the following two functions create the successive-conditional and
 #' marginal-conditional sampling needed for comparison per John Geweke's 2004
 #' JASA paper about "Getting it right."

@@ -40,7 +40,7 @@ prior_sampler <- function(prior_hyper_params) {
   # independently simulate sigma2 ~ IG(a0, b0)
   sigma2 <- 1 / rgamma(1, a0, rate = b0)
 
-  return(c(mu, sigma2))
+  return(c(mu = mu, sigma2 = sigma2))
 }
 
 likelihood_sampler <- function(n, theta) {
@@ -90,6 +90,7 @@ posterior_sampler <- function(ndraws, y, prior_hyper_params,
     
   }
   
+  colnames(THETA) <- c("mu", "sigma2")
   return(THETA)
 }
 ```
@@ -225,10 +226,10 @@ Time to define our test functions in a specific way. Like this:
 
 test_fns <- make_test_functions(
   mu_sq = function(theta, y) theta["mu"]^2,
-  product = function(theta, y) theta["mu"] * theta["sigmasq"],
+  product = function(theta, y) theta["mu"] * theta["sigma2"],
   log_like = function(theta, y) sum(dnorm(y, 
                                           mean = theta["mu"], 
-                                          sd = sqrt(theta["sigmasq"]),
+                                          sd = sqrt(theta["sigma2"]),
                                           log = TRUE))
 )
 ```
@@ -238,20 +239,23 @@ Quantitative comparison using `all_geweke_tests`:
 ```{r}
 #| label: geweke-test-chart
 
+print(nrow(direct_draws$theta))
+print(nrow(direct_draws$y))
+
 all_geweke_tests(direct_draws = direct_draws,
                  gibbs_draws = gibbs_draws,
-                 test_fns = test_fns)
+                 test_functions = test_fns)
 ```
 The output is a table! Cute.
 
-For visual comparison, we made the outputs compatible with SBC plotting functions:
+For visual comparison, we made the outputs compatible with SBC plotting functions. But methodologically. Gibbs sampling isn't really built for rank computation, so it's not a meaningful result.
 
 ```{r}
 #| label: plot-geweke-on-sbc-graphs
 
-SBC::plot_rank_hist(...)
-SBC::plot_ecdf(...)
-SBC::plot_ecdf_diff(...)
+SBC::plot_rank_hist(gibbs_draws$draws)
+SBC::plot_ecdf(gibbs_draws$draws)
+SBC::plot_ecdf_diff(gibbs_draws$draws)
 ```
 
 

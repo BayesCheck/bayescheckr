@@ -70,8 +70,17 @@ all_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
     fn <- test_functions[[nm]]
 
     # apply test function to get scalar per draw
-    g_mc <- apply(direct_draws$theta, 1, fn)
-    g_sc <- apply(gibbs_draws$theta,  1, fn)
+    # from Claude
+    g_mc <- sapply(seq_len(nrow(direct_draws$theta)), function(i) {
+      fn(direct_draws$theta[i, ], direct_draws$y[i, ])
+    })
+
+    g_sc <- sapply(seq_len(nrow(gibbs_draws$theta)), function(i) {
+      fn(gibbs_draws$theta[i, ], gibbs_draws$y[i, ])
+    })
+
+    # g_mc <- apply(direct_draws$theta, 1, fn)
+    # g_sc <- apply(gibbs_draws$theta,  1, fn)
 
     #Geweke test: first 2 rows --
 

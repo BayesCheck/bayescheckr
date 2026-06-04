@@ -69,6 +69,7 @@ geweke_sc_draws <- function(prior_sampler,
     #cycle through rows for one simulation
     for (var in varnames) {
       index <- n_params*(m - 1) + which(varnames == var)
+
       draws_matrix[index, "sim_id"] <- m #constant across variables
       draws_matrix[index, "variable"] <- var
       draws_matrix[index, "simulated_value"] <- theta[var]

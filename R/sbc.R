@@ -44,6 +44,14 @@ run_sbc <- function(prior_sampler,
                     prior_hyper_params,
                     parallelize = FALSE){
 
+  #0. Validate stuff:
+  theta_test <- prior_sampler(prior_hyper_params)
+  if (!is.numeric(theta_test))
+    stop("prior_sampler must return a numeric vector.")
+  if (is.null(names(theta_test)) || any(names(theta_test) == ""))
+    stop("prior_sampler must return a named numeric vector. ",
+         "e.g. return(c(mu = mu, sigmasq = sigma2))")
+
   #1. Get param names from one trial draw of the prior
   param_names <- names(prior_sampler(prior_hyper_params))
 

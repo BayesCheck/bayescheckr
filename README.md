@@ -114,7 +114,7 @@ The Geweke test compares two arms that should share the same stationary distribu
 If your posterior sampler is correct, both arms have the same marginal distribution for every test function h(θ, y). The QQ plots should fall on the y = x diagonal and the formal tests should return large p-values.
 
 ``` r
-direct_draws <- geweke_marg_cond_draws(
+direct_draws <- geweke_mc_draws(
   prior_sampler      = my_prior,
   likelihood_sampler = my_likelihood,
   prior_hyper_params = prior_hyper_params,
@@ -123,7 +123,7 @@ direct_draws <- geweke_marg_cond_draws(
   n_obs              = 30
 )
 
-gibbs_draws <- geweke_suc_cond_draws(
+gibbs_draws <- geweke_sc_draws(
   prior_sampler      = my_prior,
   likelihood_sampler = my_likelihood,
   posterior_sampler  = my_posterior,
@@ -133,15 +133,15 @@ gibbs_draws <- geweke_suc_cond_draws(
 )
 
 # QQ plots — points should lie on y = x
-geweke_plot(direct_draws, gibbs_draws, test_fns)
+plot_geweke_tests(direct_draws, gibbs_draws, test_fns)
 ```
 
 ### Formal tests
 
-`all_the_tests()` returns a data frame with three tests per test function:
+`tabulate_geweke_tests()` returns a data frame with three tests per test function:
 
 ``` r
-results <- all_the_tests(direct_draws, gibbs_draws, test_fns)
+results <- tabulate_geweke_tests(direct_draws, gibbs_draws, test_fns)
 print(results)
 ```
 
@@ -172,11 +172,10 @@ Large p-values (\> 0.05) across all three indicate no evidence of miscalibration
 
 | Function | Description |
 |------------------------------------|------------------------------------|
-| `geweke_marg_cond_draws()` | Generates direct (marginal-conditional) draws |
-| `geweke_suc_cond_draws()` | Runs the successive-conditional (Gibbs) chain |
-| `geweke_plot()` | QQ plots for each test function |
-| `all_the_tests()` | Geweke z-test, KS test, and convergence diagnostic in one call |
-| `run_geweke_tests()` | Applies test functions to draw matrices; returns per-draw scalar values |
+| `geweke_mc_draws()` | Generates direct (marginal-conditional) draws |
+| `geweke_sc_draws()` | Runs the successive-conditional (Gibbs) chain |
+| `tabulate_geweke_tests()` | Returns dataframe with Geweke z-test, KS test, and convergence diagnostics in one call |
+| `plot_geweke_tests()` | QQ plots for each test function |
 
 ### Shared
 

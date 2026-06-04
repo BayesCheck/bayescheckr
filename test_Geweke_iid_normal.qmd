@@ -239,9 +239,6 @@ Quantitative comparison using `all_geweke_tests`:
 ```{r}
 #| label: geweke-test-chart
 
-print(nrow(direct_draws$theta))
-print(nrow(direct_draws$y))
-
 all_geweke_tests(direct_draws = direct_draws,
                  gibbs_draws = gibbs_draws,
                  test_functions = test_fns)

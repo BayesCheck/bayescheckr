@@ -126,17 +126,22 @@ geweke_mc_draws <- function(prior_sampler,
   #directly sample parameters and draws
   #need to parallelize for speed
   gen <- SBC::SBC_generator_function(generator_single)
-  data <- SBC::generate_datasets(gen, n_draws) # = n_sims? check
+  gen_data <- SBC::generate_datasets(gen, n_draws) # = n_sims? check
 
   #store
-  theta_matrix <- as.matrix(data$variables)
+
+  #theta_matrix <- as.matrix(data$variables)
+
+  theta_matrix <- as.matrix(as.data.frame(gen_data$variables))
+  colnames(theta_matrix) <- names(prior_sampler(prior_hyper_params))
+
   y_matrix <- do.call(rbind,
-                      lapply(data$generated, function(g) g$y)) #from Claude
+                      lapply(gen_data$generated, function(g) g$y)) #from Claude
   colnames(y_matrix) <- paste0("y", 1:n_obs)
 
   wide_matrix <- cbind(theta_matrix, y_matrix)
 
-  draws_matrix <- data.frame(data$variables) |>
+  draws_matrix <- data.frame(gen_data$variables) |>
     dplyr::mutate(sim_id = dplyr::row_number()) |>
     tidyr::pivot_longer(cols = -sim_id,
                         names_to = "variable",
@@ -200,13 +205,13 @@ all_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
 
     # apply test function to get scalar per draw
     # from Claude
-    g_mc <- sapply(seq_len(nrow(direct_draws$theta)), function(i) {
-      fn(direct_draws$theta[i, ], direct_draws$y[i, ])
-    })
+    g_mc <- as.numeric(sapply(seq_len(nrow(direct_draws$theta)), function(i) {
+      fn(direct_draws$theta[i, ], as.numeric(direct_draws$y[i, ]))
+    }))
 
-    g_sc <- sapply(seq_len(nrow(gibbs_draws$theta)), function(i) {
-      fn(gibbs_draws$theta[i, ], gibbs_draws$y[i, ])
-    })
+    g_sc <- as.numeric(sapply(seq_len(nrow(gibbs_draws$theta)), function(i) {
+      fn(gibbs_draws$theta[i, ], as.numeric(gibbs_draws$y[i, ]))
+    }))
 
     # g_mc <- apply(direct_draws$theta, 1, fn)
     # g_sc <- apply(gibbs_draws$theta,  1, fn)
@@ -242,99 +247,3 @@ all_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
 
   return(data.frame(results_matrix))
 }
-
-# VIGNETTE MATERIAL / NOTES TO SELF
-
-#
-# what I need to bring to the table: the joint posterior sampler
-# Gibbs-specific alternating thing
-# (must take same/compatible inputs as other functions SBC uses)
-# only "successive-conditional" sampler; SBC has direct marginal-conditional
-# decouple the main work from the second step = test functions
-# test stuff: table with
-# - the moments/summary stats
-# - p-values for KS test and OG paper test (difference in means) z-score
-# - convergence diagnostics (autocorrelation? R-squared? canned R functions)
-# - whatever is inputted to make that table should also be a callable object
-# - test functions = up to the user
-# - two function prototype:
-#   - geweke_summary(direct draws, gibbs draws, test functions):
-#     - returns a table (aka dataframe)
-#   - geweke_plot(direct draws, gibbs draws, test functions):
-#     - doesn't return anything, just gives a panel for the QQ plots
-# main subtlety/thing to watch out for:
-#   user-friendly way to send to computer the test functions we want it to run
-# end goal: Friday meeting will have him live-testing this as "blind user"
-# format: long-formatted output matrix:
-# -- e.g. es_linreg_saved$stats has these columns:
-#         sim_id variable simulated_value rank z_score mean
-
-# successive conditional draws using first principles as inputs
-
-# NICE TO HAVES / CUT FOR TIME
-# par(mfrow = c(3, 3))
-# probs <- seq(0.05, 0.95, by = 0.05)
-# pvals <- numeric(n + 2)
-# labels <- c(paste0("beta", 1:p), "sigma", paste0("y", 1:n))
-# for (i in 1:(n + p + 1)) {
-#   quantiles_direct <- quantile(direct_draws[, i], probs)
-#   quantiles_gibbs <- quantile(gibbs_draws[, i], probs)
-#   plot(quantiles_direct, quantiles_gibbs, col = "red", pch = 19, cex = 0.5,
-#        main = labels[i], xlab = "Direct draw", ylab = "Gibbs draw")
-#   abline(a = 0, b = 1)
-#   pvals[i] <- ks.test(direct_draws[, i], gibbs_draws[, i])$p.value
-# }
-#
-# #Rafael's test functions
-#
-# par(mfrow = c(1, 1))
-# probs <- seq(0.05, 0.95, by = 0.05)
-#
-# g_direct <- direct_draws[, 1] * direct_draws[, 2] * direct_draws[, 3]
-# g_gibbs <- gibbs_draws[, 1] * gibbs_draws[, 2] * gibbs_draws[, 3]
-#
-# quantiles_direct <- quantile(g_direct, probs)
-# quantiles_gibbs <- quantile(g_gibbs, probs)
-# plot(quantiles_direct, quantiles_gibbs, col = "red", pch = 19, cex = 0.5,
-#      main = "beta_1 * beta_2 * sigma^2")
-# abline(a = 0, b = 1)
-#
-# #Histogram of the product:
-#
-# hist(g_direct[abs(g_direct) < 50], breaks = "Scott")
-# hist(g_gibbs[abs(g_gibbs) < 50], breaks = "Scott")
-#
-# #Let me also use different test functions. First, let's look at *second moments*
-#
-# par(mfrow = c(1, 3))
-# probs <- seq(0.05, 0.95, by = 0.05)
-# pvals_second <- numeric(p + 1)
-# labels_second <- c(paste("beta", 1:p, sep = "_"), "sigma2")
-#
-# for(i in 1:(p + 1)){
-#   # compute second moments by squaring
-#   second_direct <- direct_draws[, i]^2
-#   second_gibbs <- gibbs_draws[, i]^2
-#
-#   quantiles_direct <- quantile(second_direct, probs)
-#   quantiles_gibbs <- quantile(second_gibbs, probs)
-#
-#   plot(quantiles_direct, quantiles_gibbs,
-#        col = "blue", pch = 19, cex = 0.5,
-#        main = paste(labels_second[i], "squared"),
-#        xlab = "direct", ylab = "gibbs")
-#   abline(a = 0, b = 1)
-# }
-#
-# #Finally let's look at the test function $h(\theta, y) = |\beta_1 - \beta_2|$:
-#
-# par(mfrow = c(1, 1))
-# probs <- seq(0.05, 0.95, by = 0.05)
-# h_direct <- abs(direct_draws[, 1] - direct_draws[, 2])
-# h_gibbs <- abs(gibbs_draws[, 1] - gibbs_draws[, 2])
-# quantiles_direct <- quantile(h_direct, probs)
-# quantiles_gibbs <- quantile(h_gibbs, probs)
-# plot(quantiles_direct, quantiles_gibbs, col = "red", pch = 19, cex = 0.5,
-#      main = "|beta_1 - beta_2|",
-#      xlab = "direct", ylab = "gibbs")
-# abline(a = 0, b = 1)

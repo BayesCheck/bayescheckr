@@ -2,3 +2,8 @@
 ^\.Rproj\.user$
 ^\.positai$
 ^\.claude$
+^test_SBC_iid_normal_files$
+^test_SBC_iid_normal\.html$
+^test_SBC_iid_normal\.qmd$
+^test_SBC_regression\.qmd$
+^test_Geweke_iid_normal\.qmd$

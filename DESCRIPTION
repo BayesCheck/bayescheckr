@@ -1,8 +1,8 @@
 Package: bayescheckr
-Title: What the Package Does (One Line, Title Case)
+Title: Bayesian Posterior Sampler Validator through Geweke and SBC frameworks
 Version: 0.0.0.9000
 Authors@R: 
-    person("Lance", "Browne", "lance.browne@duke.edu", role = c("aut", "cre"))
+    person(given = "Lance", family = "Browne", role = c("aut", "cre"), email = "lance.browne@duke.edu")
 Author: Lance Browne [aut, cre]
 Maintainer: Lance Browne <lance.browne@duke.edu>
 Description: Tools for validating posterior samplers using 
@@ -11,6 +11,8 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 8.0.0.9000
+Depends:
+    R (>= 4.1.0)
 Imports:
     SBC,
     future,

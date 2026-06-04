@@ -1,5 +1,4 @@
-#' @export
-make_backend <- function(posterior_sampler, n_draws,
+.make_backend <- function(posterior_sampler, n_draws,
                           prior_hyper_params, param_names) {
   structure(
     list(sampling_func = posterior_sampler,
@@ -9,6 +8,8 @@ make_backend <- function(posterior_sampler, n_draws,
     class = "bayescheckr_backend"
   )
 }
+
+#' @method SBC_fit bayescheckr_backend
 #' @export
 SBC_fit.bayescheckr_backend <- function(backend, generated, cores){
   res_raw <- backend$sampling_func(
@@ -19,8 +20,8 @@ SBC_fit.bayescheckr_backend <- function(backend, generated, cores){
   colnames(res_raw) <- backend$param_names
   posterior::as_draws_matrix(res_raw)
 }
-#' @export
-make_generator_single <- function(prior_sampler, likelihood_sampler, n_obs,
+
+.make_generator_single <- function(prior_sampler, likelihood_sampler, n_obs,
                                    prior_hyper_params) {
   function() {
     theta <- prior_sampler(prior_hyper_params)
@@ -33,7 +34,7 @@ make_generator_single <- function(prior_sampler, likelihood_sampler, n_obs,
   }
 }
 
-#5. The main entry point.
+# The main entry point.
 #' @export
 run_sbc <- function(prior_sampler,
                     likelihood_sampler,
@@ -53,17 +54,17 @@ run_sbc <- function(prior_sampler,
          "e.g. return(c(mu = mu, sigmasq = sigma2))")
 
   #1. Get param names from one trial draw of the prior
-  param_names <- names(prior_sampler(prior_hyper_params))
+  param_names <- names(theta_test)
 
   #2. Build the generator and dataset
   generator <- SBC::SBC_generator_function(
-    make_generator_single(prior_sampler, likelihood_sampler, n_obs,
+    .make_generator_single(prior_sampler, likelihood_sampler, n_obs,
                            prior_hyper_params)
   )
   dataset <- SBC::generate_datasets(generator, n_sims)
 
   #3. Build the backend
-  backend <- make_backend(posterior_sampler, n_draws, prior_hyper_params,
+  backend <- .make_backend(posterior_sampler, n_draws, prior_hyper_params,
                            param_names)
 
   #4. Run SBC, maybe use parallelization
@@ -85,15 +86,7 @@ run_sbc <- function(prior_sampler,
   )
 }
 
-#' A full picture of what run_sbc() returns:
-#' ```r
-#' result <- run_sbc(...)
-#'
-#' result$sbc_result                    # native SBC_results, use with SBC:: functions
-#' result$dataset$variables             # n_sims x n_params matrix of theta_tilde draws
-#' result$dataset$generated[[i]]$y      # y vector for simulation i
-#' result$sbc_result$fits[[i]]          # n_draws x n_params posterior draws for simulation i
-#' ```r
+#' Convert a bayescheckr_ranks object to an SBC_results object for plotting
 #' @export
 ranks_to_sbc_results <- function(ranked) {
 

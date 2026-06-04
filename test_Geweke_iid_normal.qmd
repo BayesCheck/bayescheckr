@@ -97,12 +97,15 @@ posterior_sampler <- function(ndraws, y, prior_hyper_params,
 
 Now that we have these functions, we can use them to simulate the Bayesian joint distribution two ways.
 
-Set hyperparameters:
+Set hyperparameters and initialize other values of interest:
 
 ```{r}
 #| label: define-hyperparams
 
 prior_hyper_params <- list(a0 = 1, b0 = 1, mu0 = 0, v20 = 1)
+
+n_draws <- 1e4
+n_obs <- 2
 ```
 
 Get our draws:
@@ -115,7 +118,7 @@ Get our draws:
 direct_draws <- geweke_mc_draws(prior_sampler = prior_sampler, 
                                 likelihood_sampler = likelihood_sampler,
                                 prior_hyper_params = prior_hyper_params,
-                                n_draws = 1e4, n_obs = 2)
+                                n_draws = n_draws, n_obs = n_obs)
 ```
 
 #get gibbs joint sampler using successive-conditional
@@ -124,7 +127,7 @@ gibbs_draws <- geweke_sc_draws(prior_sampler = prior_sampler,
                                likelihood_sampler = likelihood_sampler,
                                posterior_sampler = posterior_sampler,
                                prior_hyper_params = prior_hyper_params,
-                               n_draws = 100, n_obs = 2)
+                               n_draws = n_draws, n_obs = n_obs)
 ```
 
 We can see our draws in both a long format (compatible with SBC) or the standard format. 
@@ -155,16 +158,27 @@ test_fns <- make_test_functions(
 )
 ```
 
-Quantitative comparison using `all_geweke_tests`:
+Quantitative comparison using `tabulate_geweke_tests`:
 
 ```{r}
 #| label: geweke-test-chart
 
-all_geweke_tests(direct_draws = direct_draws,
+tabulate_geweke_tests(direct_draws = direct_draws,
                  gibbs_draws = gibbs_draws,
                  test_functions = test_fns)
 ```
 The output is a table! Cute.
+
+Make some QQ plots:
+
+```{r}
+#| label: geweke-test-qq-plots
+
+plot_geweke_tests(direct_draws = direct_draws,
+                 gibbs_draws = gibbs_draws,
+                 test_functions = test_fns)
+```
+
 
 For visual comparison, we made the outputs compatible with SBC plotting functions. But methodologically. Gibbs sampling isn't really built for rank computation, so it's not a meaningful result.
 

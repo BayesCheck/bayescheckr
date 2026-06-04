@@ -180,7 +180,7 @@ geweke_test <- function(g_mc, g_sc) { #input: vectors, length = n_draws
   return(list(stat = test_stat, p_value = p_value))
 }
 
-all_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
+tabulate_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
 
   #allocate storage for results: 2 stats x n tests - same as testfunctions.R
   stats <- c("statistic", "p_value")
@@ -246,4 +246,41 @@ all_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
   }
 
   return(data.frame(results_matrix))
+}
+
+#' @export
+plot_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
+
+  probs <- seq(0.05, 0.95, by = 0.05)
+  n_fns <- length(test_functions)
+
+  # set up plot grid
+  par(mfrow = c(ceiling(n_fns / 3), 3))
+
+  for (nm in names(test_functions)) {
+    fn <- test_functions[[nm]]
+
+    # apply test function to get scalar per draw
+    g_mc <- as.numeric(sapply(seq_len(nrow(direct_draws$theta)), function(i) {
+      fn(direct_draws$theta[i, ], direct_draws$y[i, ])
+    }))
+
+    g_sc <- as.numeric(sapply(seq_len(nrow(gibbs_draws$theta)), function(i) {
+      fn(gibbs_draws$theta[i, ], gibbs_draws$y[i, ])
+    }))
+
+    # compute quantiles and plot
+    quantiles_direct <- quantile(g_mc, probs)
+    quantiles_gibbs  <- quantile(g_sc, probs)
+
+    plot(quantiles_direct, quantiles_gibbs,
+         col = "red", pch = 19, cex = 0.5,
+         main = nm,
+         xlab = "Direct draw",
+         ylab = "Gibbs draw")
+    abline(a = 0, b = 1)
+  }
+
+  # reset plot layout
+  par(mfrow = c(1, 1))
 }

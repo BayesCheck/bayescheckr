@@ -180,6 +180,7 @@ geweke_test <- function(g_mc, g_sc) { #input: vectors, length = n_draws
   return(list(stat = test_stat, p_value = p_value))
 }
 
+#' @export
 tabulate_geweke_tests <- function(direct_draws, gibbs_draws, test_functions) {
 
   #allocate storage for results: 2 stats x n tests - same as testfunctions.R

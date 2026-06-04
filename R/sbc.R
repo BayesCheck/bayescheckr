@@ -74,7 +74,8 @@ run_sbc <- function(prior_sampler,
   if (parallelize == TRUE) {
     future::plan(future::multisession)
     on.exit(future::plan(future::sequential))
-    globals <- c("SBC_fit.bayescheckr_backend")
+    globals <- c("SBC_fit.bayescheckr_backend", ".make_backend",
+                 ".make_generator_single")
     res <- SBC::compute_SBC(dataset, backend, globals = globals)
   } else {
     res <- SBC::compute_SBC(dataset, backend)
@@ -118,6 +119,12 @@ ranks_to_sbc_results <- function(ranked) {
     ),
     class = "SBC_results"
   )
+}
+
+.onLoad <- function(libname, pkgname) {
+  registerS3method("SBC_fit", "bayescheckr_backend",
+                   SBC_fit.bayescheckr_backend,
+                   envir = asNamespace("SBC"))
 }
 
 

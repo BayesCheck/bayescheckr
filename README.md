@@ -1,8 +1,246 @@
+---
+
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
 # bayescheckr
-Source code for our package to streamline Bayesian sampling implementation.
 
-Rafael's edit commit test yayyy
-:-)
-Trisha was here!
+**bayescheckr** is an R package for validating Bayesian posterior samplers. It provides two complementary approaches — Simulation-Based Calibration (SBC) and the Geweke joint-distribution test — so you can be confident your sampler is drawing from the right posterior before you use it for inference.
 
-funky business
+------------------------------------------------------------------------
+
+## Why use bayescheckr?
+
+A posterior sampler can look reasonable and still be wrong: the chain might converge, trace plots might look clean, and summary statistics might seem plausible, all while the sampler is systematically miscalibrated. bayescheckr catches these silent failures by testing the *joint distribution* of your sampler, not just its output on one dataset.
+
+The two tests address different failure modes:
+
+| Test | What it checks | What it catches |
+|------------------------|------------------------|------------------------|
+| **SBC** | Are posterior credible intervals calibrated across repeated datasets? | Over/under-confident posteriors, wrong likelihood, prior–posterior mismatch |
+| **Geweke** | Do direct draws and MCMC draws share the same marginal distribution? | Broken Gibbs updates, incorrect full conditionals, programming errors |
+
+------------------------------------------------------------------------
+
+## Installation
+
+``` r
+# Install from GitHub (once public)
+devtools::install_github("BayesCheck/bayescheckr")
+
+# Or load from source during development
+devtools::load_all(".")
+```
+
+**Dependencies:** `SBC`, `posterior`, `coda`, `future`, `tidyverse`
+
+------------------------------------------------------------------------
+
+## Quick start
+
+The three things you always need to provide are a **prior sampler**, a **likelihood sampler**, and a **posterior sampler**. bayescheckr does the rest.
+
+``` r
+library(bayescheckr)
+
+# Hyperparameters passed to all three samplers
+prior_hyper_params <- list(mu_0 = 0, sigma_0 = 1, sigma = 2)
+
+# 1. Prior: returns a *named* vector — names become parameter labels
+my_prior <- function(hyper) {
+  c(mu = rnorm(1, mean = hyper$mu_0, sd = hyper$sigma_0))
+}
+
+# 2. Likelihood: (n_obs, theta) -> length-n numeric vector
+my_likelihood <- function(n, theta) {
+  rnorm(n, mean = theta["mu"], sd = prior_hyper_params$sigma)
+}
+
+# 3. Posterior: (ndraws, y, prior_hyper_params) -> ndraws x n_params matrix
+my_posterior <- function(ndraws, y, prior_hyper_params) {
+  n         <- length(y)
+  sigma_n_sq <- 1 / (n / prior_hyper_params$sigma^2 + 1 / prior_hyper_params$sigma_0^2)
+  mu_n       <- sigma_n_sq * (sum(y) / prior_hyper_params$sigma^2 +
+                              prior_hyper_params$mu_0 / prior_hyper_params$sigma_0^2)
+  matrix(rnorm(ndraws, mu_n, sqrt(sigma_n_sq)), ncol = 1, dimnames = list(NULL, "mu"))
+}
+```
+
+------------------------------------------------------------------------
+
+## SBC
+
+SBC runs your sampler across many simulated datasets and checks that the true parameter ranks uniformly among the posterior draws. If your sampler is correct, the rank histogram should be flat.
+
+``` r
+result <- run_sbc(
+  prior_sampler      = my_prior,
+  likelihood_sampler = my_likelihood,
+  posterior_sampler  = my_posterior,
+  n_sims             = 300,
+  n_obs              = 30,
+  n_draws            = 500,
+  prior_hyper_params = prior_hyper_params
+)
+
+# Rank histogram — should be flat
+SBC::plot_rank_hist(result$sbc_result)
+
+# ECDF difference — should hug zero
+SBC::plot_ecdf_diff(result$sbc_result)
+```
+
+### Scalar diagnostics
+
+``` r
+rank_mean_test(result$sbc_result, L = 500)      # observed mean ≈ L/2
+rank_variance_test(result$sbc_result, L = 500)  # ratio ≈ 1.0
+rank_ks_test(result$sbc_result, L = 500)        # large p-value
+rank_kl_divergence(result$sbc_result, L = 500)  # near 0
+```
+
+### Test functions
+
+By default SBC checks raw parameter ranks. You can also check ranks of *derived quantities* using test functions — useful for catching bugs that only show up in nonlinear summaries of the posterior.
+
+``` r
+test_fns <- make_test_functions(
+  mu_sq    = function(theta, y) theta["mu"]^2,
+  log_like = function(theta, y)
+    sum(dnorm(y, theta["mu"], prior_hyper_params$sigma, log = TRUE))
+)
+
+# Recompute ranks on test functions rather than raw parameters
+ranked  <- recompute_ranks(result, test_fns)
+shell   <- .ranks_to_sbc_results(ranked)
+
+SBC::plot_rank_hist(shell)
+SBC::plot_ecdf_diff(shell)
+```
+
+------------------------------------------------------------------------
+
+## Geweke test
+
+The Geweke test compares two arms that should share the same stationary distribution:
+
+- **Direct (marginal-conditional)** draws: sample θ from the prior, then y from the likelihood. These are i.i.d. draws from the joint distribution p(θ, y).
+- **Successive-conditional (Gibbs)** draws: starting from any initial value, alternate between drawing θ \| y from the posterior and y \| θ from the likelihood. At stationarity these are also draws from p(θ, y).
+
+If your posterior sampler is correct, both arms have the same marginal distribution for every test function h(θ, y). The QQ plots should fall on the y = x diagonal and the formal tests should return large p-values.
+
+``` r
+direct_draws <- geweke_marg_cond_draws(
+  prior_sampler      = my_prior,
+  likelihood_sampler = my_likelihood,
+  prior_hyper_params = prior_hyper_params,
+  n_params           = 1,
+  n_draws            = 2000,
+  n_obs              = 30
+)
+
+gibbs_draws <- geweke_suc_cond_draws(
+  prior_sampler      = my_prior,
+  likelihood_sampler = my_likelihood,
+  posterior_sampler  = my_posterior,
+  prior_hyper_params = prior_hyper_params,
+  n_draws            = 2000,
+  n_obs              = 30
+)
+
+# QQ plots — points should lie on y = x
+geweke_plot(direct_draws, gibbs_draws, test_fns)
+```
+
+### Formal tests
+
+`all_the_tests()` returns a data frame with three tests per test function:
+
+``` r
+results <- all_the_tests(direct_draws, gibbs_draws, test_fns)
+print(results)
+```
+
+| Row | What it tests |
+|------------------------------------|------------------------------------|
+| `Geweke statistic / p_value` | Difference-in-means z-test (Geweke 2004) using long-run variance for the Gibbs arm |
+| `KS statistic / p_value` | Kolmogorov–Smirnov two-sample test |
+| `Convergence statistic / p_value` | `coda::geweke.diag` on the Gibbs chain — checks internal chain convergence |
+
+Large p-values (\> 0.05) across all three indicate no evidence of miscalibration.
+
+------------------------------------------------------------------------
+
+## Catching a broken sampler
+
+To see what failure looks like, swap in a posterior that ignores the data:
+
+``` r
+broken_posterior <- function(ndraws, y, prior_hyper_params) {
+  matrix(rnorm(ndraws, prior_hyper_params$mu_0, prior_hyper_params$sigma_0),
+         ncol = 1, dimnames = list(NULL, "mu"))
+}
+```
+
+With SBC, ranks will pile up at the extremes (the true θ almost always falls outside the too-wide posterior), producing a U-shaped histogram and a near-zero KS p-value.
+
+With Geweke, `y_mean` and `log_like` test functions will diverge between the two arms because the broken Gibbs chain never learns from the data, while the direct arm reflects the full joint distribution.
+
+------------------------------------------------------------------------
+
+## Function reference
+
+### SBC
+
+| Function | Description |
+|------------------------------------|------------------------------------|
+| `run_sbc()` | Main entry point. Runs SBC and returns a `bayescheckr_sbc` object |
+| `recompute_ranks()` | Recomputes ranks using user-supplied test functions |
+| `rank_mean_test()` | Tests whether the rank mean equals the expected value `L/2` |
+| `rank_variance_test()` | Tests whether rank variance matches the uniform expectation |
+| `rank_ks_test()` | KS test of rank uniformity |
+| `rank_kl_divergence()` | KL divergence between empirical and uniform rank distribution |
+
+### Geweke
+
+| Function | Description |
+|------------------------------------|------------------------------------|
+| `geweke_marg_cond_draws()` | Generates direct (marginal-conditional) draws |
+| `geweke_suc_cond_draws()` | Runs the successive-conditional (Gibbs) chain |
+| `geweke_plot()` | QQ plots for each test function |
+| `all_the_tests()` | Geweke z-test, KS test, and convergence diagnostic in one call |
+| `run_geweke_tests()` | Applies test functions to draw matrices; returns per-draw scalar values |
+
+### Shared
+
+| Function | Description |
+|------------------------------------|------------------------------------|
+| `make_test_functions()` | Validates and packages user-supplied test functions |
+
+------------------------------------------------------------------------
+
+## Sampler interface
+
+All three samplers must follow these exact signatures:
+
+``` r
+# Prior: no arguments other than hyperparameters; returns a named vector
+prior_sampler <- function(prior_hyper_params) { ... }
+
+# Likelihood: (n_obs, theta) -> numeric vector of length n_obs
+likelihood_sampler <- function(n_obs, theta) { ... }
+
+# Posterior: (ndraws, y, prior_hyper_params) -> ndraws x n_params matrix
+#            column names must match the names returned by prior_sampler
+posterior_sampler <- function(ndraws, y, prior_hyper_params) { ... }
+```
+
+Test functions must take exactly `(theta, y)` and return a scalar:
+
+``` r
+# theta: named numeric vector (one draw)
+# y:     numeric vector of observations
+my_test <- function(theta, y) { ... }  # must return a single number
+```

@@ -220,44 +220,6 @@ gibbs_correct <- geweke_sc_draws(
   n_obs              = n_obs
 )
 
-# 4a. QQ plots — points should lie on the y = x diagonal --------------------
-geweke_plot(
-  direct_draws   = direct_correct,
-  gibbs_draws    = gibbs_correct,
-  test_functions = test_fns
-)
-title("Geweke QQ — correct sampler (should hug y = x)", outer = TRUE, line = -1)
-
-# 4b. run_geweke_tests(): scalar values per draw for each test function ------
-# Returns a long data.frame: columns test_function and values.
-# Useful if you want to build your own summaries or plots downstream.
-g_direct_vals <- all_geweke_tests(test_fns,
-                                  theta_matrix = direct_correct$theta,
-                                  y_matrix     = direct_correct$y)
-
-g_gibbs_vals  <- all_geweke_tests(test_fns,
-                                  theta_matrix = gibbs_correct$theta,
-                                  y_matrix     = gibbs_correct$y)
-
-cat("run_geweke_tests() output (first 6 rows, direct arm):\n")
-print(head(g_direct_vals))
-
-# 4c. all_geweke_tests(): Geweke z-test + KS test + MCMC convergence -----------
-# Returns a data.frame with rows:
-#   Geweke statistic / p_value
-#   KS statistic     / p_value
-#   Convergence statistic / p_value   (coda::geweke.diag on the Gibbs chain)
-# Columns = one per test function.
-cat("\n--- all_tests() output (correct sampler) ---\n")
-results_correct <- all_geweke_tests(
-  direct_draws   = direct_correct,
-  gibbs_draws    = gibbs_correct,
-  test_functions = test_fns
-)
-print(results_correct)
-# Expect: Geweke and KS p-values all large (> 0.05).
-
-
 # =============================================================================
 # 5. Geweke — broken Gibbs chain
 # =============================================================================

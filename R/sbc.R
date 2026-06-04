@@ -1,6 +1,3 @@
-#' @import SBC
-NULL
-
 .make_backend <- function(posterior_sampler, n_draws,
                           prior_hyper_params, param_names) {
   structure(
@@ -119,12 +116,6 @@ ranks_to_sbc_results <- function(ranked) {
     ),
     class = "SBC_results"
   )
-}
-
-.onLoad <- function(libname, pkgname) {
-  registerS3method("SBC_fit", "bayescheckr_backend",
-                   SBC_fit.bayescheckr_backend,
-                   envir = asNamespace("SBC"))
 }
 
 

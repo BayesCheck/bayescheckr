@@ -129,6 +129,8 @@ We need to define our test functions in a specific way. Like this:
 
 ```{r}
 test_fns <- make_test_functions(
+  mu = function(theta, y) theta["mu"],
+  sigmasq = function(theta, y) theta["sigmasq"],
   mu_sq = function(theta, y) theta["mu"]^2,
   product = function(theta, y) theta["mu"] * theta["sigmasq"],
   log_like = function(theta, y) sum(dnorm(y, 

@@ -96,7 +96,7 @@ test_fns <- make_test_functions(
 
 # Recompute ranks on test functions rather than raw parameters
 ranked  <- recompute_ranks(result, test_fns)
-shell   <- .ranks_to_sbc_results(ranked)
+shell   <- ranks_to_sbc_results(ranked)
 
 SBC::plot_rank_hist(shell)
 SBC::plot_ecdf_diff(shell)

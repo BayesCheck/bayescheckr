@@ -209,15 +209,15 @@ tabulate_geweke_tests <- function(direct_draws,
   stats <- c("statistic", "p_value")
   tests <- c("Geweke", "KS", "Convergence")
 
-  results_matrix <- matrix(NA, nrow = 6, ncol = length(test_functions),
+  results_matrix <- matrix(NA, nrow = length(test_functions), ncol = 6,
                            dimnames =
                              list(
+                               #colnames
+                               names(test_functions),
                                #rownames
                                c(paste("Geweke", stats),
                                  paste("KS", stats),
-                                 paste("Convergence", stats)),
-                               #colnames
-                               names(test_functions)
+                                 paste("Convergence", stats))
                              ))
 
   #intentionally copying naming conventions from recompute_ranks()
@@ -245,8 +245,8 @@ tabulate_geweke_tests <- function(direct_draws,
     gw <- geweke_test(g_mc, g_sc)
 
     #add results
-    results_matrix["Geweke statistic", nm] <- gw$stat
-    results_matrix["Geweke p_value",   nm] <- gw$p_value
+    results_matrix[nm, "Geweke statistic"] <- gw$stat
+    results_matrix[nm, "Geweke p_value"] <- gw$p_value
 
     #KS test: next 2 rows --
 
@@ -254,8 +254,8 @@ tabulate_geweke_tests <- function(direct_draws,
     ks <- stats::ks.test(g_mc, g_sc)
 
     #add results
-    results_matrix["KS statistic", nm] <- ks$statistic
-    results_matrix["KS p_value",   nm] <- ks$p.value
+    results_matrix[nm, "KS statistic"] <- ks$statistic
+    results_matrix[nm, "KS p_value"] <- ks$p.value
 
     #MCMC convergence test: last 2 rows --
 
@@ -264,8 +264,8 @@ tabulate_geweke_tests <- function(direct_draws,
     conv        <- coda::geweke.diag(gibbs_chain)
 
     #add results
-    results_matrix["Convergence statistic", nm] <- as.numeric(conv$z)
-    results_matrix["Convergence p_value",   nm] <- 2 * pnorm(-abs(conv$z))
+    results_matrix[nm, "Convergence statistic"] <- as.numeric(conv$z)
+    results_matrix[nm, "Convergence p_value"] <- 2 * pnorm(-abs(conv$z))
   }
 
   return(data.frame(results_matrix))

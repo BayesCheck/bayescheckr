@@ -118,7 +118,6 @@ direct_draws <- geweke_mc_draws(
   prior_sampler      = my_prior,
   likelihood_sampler = my_likelihood,
   prior_hyper_params = prior_hyper_params,
-  n_params           = 1,
   n_draws            = 2000,
   n_obs              = 30
 )

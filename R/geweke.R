@@ -59,6 +59,7 @@ geweke_sc_draws <- function(prior_sampler,
   for (b in 1:n_burnin) {
     theta <- posterior_sampler(ndraws = 1, y = y,
                                prior_hyper_params = prior_hyper_params)
+    colnames(theta) <- varnames
     theta <- theta[1, ]
     y     <- likelihood_sampler(n_obs, theta)
   }

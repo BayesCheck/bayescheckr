@@ -70,6 +70,7 @@ geweke_sc_draws <- function(prior_sampler,
     theta <- posterior_sampler(ndraws = 1,
                                y = y,
                                prior_hyper_params = prior_hyper_params)
+    colnames(theta) <- varnames
     theta <- theta[1, ]
     theta_matrix[m, ] <- theta
 

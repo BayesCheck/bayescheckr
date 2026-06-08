@@ -76,7 +76,8 @@ geweke_sc_draws <- function(prior_sampler,
 
     theta <- posterior_sampler(ndraws = 1,
                                y = y,
-                               prior_hyper_params = prior_hyper_params)
+                               prior_hyper_params = prior_hyper_params,
+                               init = theta)
     colnames(theta) <- varnames
     theta <- theta[1, ]
 
@@ -86,7 +87,7 @@ geweke_sc_draws <- function(prior_sampler,
     if (keep_draw(m, n_burn, n_thin)) { #decide whether to save the draw
 
       #calculate simulation ID
-      n <- (m - n_burn) / n_thin
+      n <- 1 + (m - n_burn) / n_thin
 
       #store draws in respective matrices
       theta_matrix[n, ] <- theta

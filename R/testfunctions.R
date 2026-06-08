@@ -28,39 +28,45 @@ make_test_functions <- function(...) {
 #FOR SBC ONLY:
 
 #' @export
-recompute_ranks <- function(result, test_fns) {
+recompute_ranks <- function(result, test_fns,
+                            parallelize = FALSE,
+                            thin_ranks = NULL) {
 
   n_sims <- length(result$sbc_result$fits)
   n_tests <- length(test_fns)
 
-  #preallocate ranks matrix: n_sims x n_tests
-  ranks <- matrix(NA,
-                  nrow = n_sims,
-                  ncol = n_tests,
-                  dimnames = list(NULL, names(test_fns)))
-
-  for (i in seq_len(n_sims)) {
-
-    #extract the 3 things we need for simulation i
-    theta_tilde <- as.numeric(result$dataset$variables[i, ])
-    names(theta_tilde) <- colnames(result$dataset$variables)
-    y <- result$dataset$generated[[i]]$y
-    draws <- posterior::as_draws_matrix(result$sbc_result$fits[[i]])
-
-    for (nm in names(test_fns)) {
-      fn <- test_fns[[nm]]
-
-      #compute f(theta_tilde, y): scalar
-      tilde_val <- fn(theta_tilde, y)
-
-      #compute f(theta_1, y) for each posterior draw: vector
-      post_vals <- apply(draws, 1, function(theta) fn(theta, y))
-
-      #rank of theta tilde among posterior draws
-      ranks[i, nm] <- sum(post_vals < tilde_val)
-
-    }
+  if(parallelize == TRUE) {
+    future::plan(future::multisession)
+    on.exit(future::plan(future::sequential))
   }
+
+  # thin if requested
+  n_draws_total <- nrow(posterior::as_draws_matrix(result$sbc_result$fits[[1]]))
+  thin_idx <- if (is.null(thin_ranks)) seq_len(n_draws_total)
+              else seq(1, n_draws_total, by = thin_ranks)
+
+  ranks_list <- future.apply::future_lapply(
+    seq_len(n_sims),
+    function(i) {
+      theta_tilde <- as.numeric(result$dataset$variables[i, ])
+      names(theta_tilde) <- colnames(result$dataset$variables)
+      y <- result$dataset$generated[[i]]$y
+      draws <- posterior::as_draws_matrix(result$sbc_result$fits[[i]])[thin_idx, ]
+      row <- numeric(n_tests)
+      names(row) <- names(test_fns)
+      for (nm in names(test_fns)){
+          fn <- test_fns[[nm]]
+          tilde_val <- fn(theta_tilde, y)
+          post_vals <- apply(draws, 1, function(theta) fn(theta, y))
+          row[nm] <- sum(post_vals < tilde_val)
+      }
+      row
+    },
+    future.seed = TRUE
+  )
+
+  ranks <- do.call(rbind, ranks_list)
+  colnames(ranks) <- names(test_fns)
 
   structure(
     list(ranks = ranks,

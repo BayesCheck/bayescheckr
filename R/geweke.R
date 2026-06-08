@@ -91,7 +91,7 @@ geweke_sc_draws <- function(prior_sampler,
       n <- 1 + (m - n_burn) / n_thin
 
       if (debug) {
-        print(paste("m = ", m, "/ n =", n, "/ saved_draws" = saved_draws))
+        print(paste("m = ", m, "& n = ", n, "& saved_draws" = saved_draws))
       }
 
       #store draws in respective matrices

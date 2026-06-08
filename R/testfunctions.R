@@ -69,9 +69,9 @@ recompute_ranks <- function(result, test_fns,
   colnames(ranks) <- names(test_fns)
 
   structure(
-    list(ranks <- ranks,
-         n_draws <- length(thin_idx),
-         n_sims <- n_sims),
+    list(ranks = ranks,
+         n_draws = length(thin_idx),
+         n_sims = n_sims),
     class = "bayescheckr_ranks"
   )
 }

@@ -173,7 +173,8 @@ Make some QQ plots:
 
 plot_geweke_tests(direct_draws = direct_draws,
                  gibbs_draws = gibbs_draws,
-                 test_functions = test_fns)
+                 test_functions = test_fns,
+                 probs = seq(0.01, 0.99, 0.01))
 ```
 
 

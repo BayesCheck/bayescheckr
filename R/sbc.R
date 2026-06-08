@@ -4,10 +4,6 @@
     theta <- prior_sampler(prior_hyper_params)
     y <- likelihood_sampler(n_obs, theta)
 
-    # coerce y to matrix if it's a plain vector
-    if (is.vector(y) && !is.list(y))
-      y <- matrix(y, nrow = 1)
-
     list(
       variables = as.list(theta),
       generated = list(y = y,

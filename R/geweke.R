@@ -40,7 +40,7 @@ geweke_sc_draws <- function(prior_sampler,
                             n_thin = 5) {
 
   #set total loop iterations using burn-in and thinning inputs
-  total_draws <- n_burn + n_draws*n_thin
+  total_draws <- n_burn + (n_draws - 1) *n_thin
 
   saved_draws <- n_draws #floor(n_draws / n_thin)
 

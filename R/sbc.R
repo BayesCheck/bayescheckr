@@ -3,6 +3,11 @@
   function() {
     theta <- prior_sampler(prior_hyper_params)
     y <- likelihood_sampler(n_obs, theta)
+
+    # coerce y to matrix if it's a plain vector
+    if (is.vector(y) && !is.list(y))
+      y <- matrix(y, nrow = 1)
+
     list(
       variables = as.list(theta),
       generated = list(y = y,
@@ -30,6 +35,15 @@ run_sbc <- function(prior_sampler,
   if (is.null(names(theta_test)) || any(names(theta_test) == ""))
     stop("prior_sampler must return a named numeric vector. ",
          "e.g. return(c(mu = mu, sigmasq = sigma2))")
+
+  # new check for likelihood_sampler
+  y_test <- likelihood_sampler(n_obs, theta_test)
+  if (!is.numeric(y_test) && !is.matrix(y_test) && !is.list(y_test))
+    stop("likelihood_sampler must return a numeric vector, matrix, or list.")
+  if (is.vector(y_test) && !is.list(y_test)) {
+    # coerce to matrix silently so downstream code always sees consistent format
+    warning("likelihood_sampler returned a plain vector — consider returning a matrix for generality.")
+  }
 
   #1. Get param names from one trial draw of the prior
   param_names <- names(theta_test)

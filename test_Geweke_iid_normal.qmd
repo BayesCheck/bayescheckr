@@ -104,7 +104,7 @@ Set hyperparameters and initialize other values of interest:
 
 prior_hyper_params <- list(a0 = 1, b0 = 1, mu0 = 0, v20 = 1)
 
-n_draws <- 10000
+n_draws <- 5e4
 n_obs <- 10
 ```
 
@@ -129,7 +129,7 @@ gibbs_draws <- geweke_sc_draws(prior_sampler = prior_sampler,
                                likelihood_sampler = likelihood_sampler,
                                posterior_sampler = posterior_sampler,
                                prior_hyper_params = prior_hyper_params,
-                               n_draws = n_draws, n_obs = n_obs)
+                               n_draws = n_draws, n_obs = n_obs, n_thin = 2)
 ```
 
 We can see our draws in both a long format (compatible with SBC) or the standard format. 

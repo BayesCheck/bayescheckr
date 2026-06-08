@@ -79,7 +79,7 @@ run_sbc <- function(prior_sampler,
 ranks_to_sbc_results <- function(ranked) {
 
   # build the minimal stats dataframe the SBC plotting functions need
-  n_sims   <- ranked$n_sims
+  n_sims   <- nrow(ranked$ranks)
   n_tests  <- ncol(ranked$ranks)
 
   stats <- data.frame(

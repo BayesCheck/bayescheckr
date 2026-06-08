@@ -21,6 +21,7 @@
 # Unexported helpers
 # ------------------------------------------------------------------------------
 
+
 .kl_kde <- function(x, y, n_grid = 512) {
   r  <- range(c(x, y))
   lo <- r[1] - diff(r) * 0.1
@@ -31,6 +32,7 @@
   pB <- pB / sum(pB)
   sum(pA * log(pA / pB))
 }
+
 
 .js_kde <- function(x, y, n_grid = 512) {
   r  <- range(c(x, y))
@@ -44,6 +46,7 @@
   0.5 * sum(pA * log(pA / M)) + 0.5 * sum(pB * log(pB / M))
 }
 
+
 .wass_1d <- function(x, y) {
   n  <- max(length(x), length(y))
   xs <- quantile(x, probs = seq(0, 1, length.out = n))
@@ -51,11 +54,13 @@
   mean(abs(xs - ys))
 }
 
+
 .neighbourhood_density <- function(prototype, samples, radius) {
   dists <- sqrt(rowSums(sweep(as.matrix(samples), 2,
                               as.numeric(prototype), "-")^2))
   mean(dists < radius)
 }
+
 
 .auto_radius <- function(theta_matrix, max_rows = 500) {
   idx <- sample(nrow(theta_matrix), min(max_rows, nrow(theta_matrix)))
@@ -66,6 +71,7 @@
 # ------------------------------------------------------------------------------
 # Method 1 — influential-example explanations
 # ------------------------------------------------------------------------------
+
 
 .run_influential <- function(theta_A, theta_B, varnames) {
 
@@ -133,6 +139,7 @@
 # Method 2 — prototype-neighbourhood explanations
 # ------------------------------------------------------------------------------
 
+
 .run_prototypes <- function(theta_A, theta_B, varnames, k, radius) {
 
   pam_fit <- cluster::pam(theta_A, k = k, metric = "euclidean")
@@ -167,6 +174,7 @@
 # ------------------------------------------------------------------------------
 # Method 3 — divergence metrics
 # ------------------------------------------------------------------------------
+
 
 .run_divergences <- function(theta_A, theta_B, varnames) {
 

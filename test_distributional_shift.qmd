@@ -15,7 +15,7 @@ source("R/testfunctions.R")
 source("R/DistributionShift.R")
 ```
 
----
+------------------------------------------------------------------------
 
 ## 1. Define the model
 
@@ -66,7 +66,7 @@ posterior_sampler <- function(ndraws, y, prior_hyper_params,
 }
 ```
 
----
+------------------------------------------------------------------------
 
 ## 2. Generate the two draw populations
 
@@ -91,29 +91,11 @@ gibbs_draws <- geweke_sc_draws(
 )
 ```
 
-Confirm the Geweke test passes before interpreting the shift results — QQ plots
-should lie on the diagonal and all p-values should be > 0.05:
-
-```{r}
-test_fns <- make_test_functions(
-  mu       = function(theta, y) theta["mu"],
-  sigmasq  = function(theta, y) theta["sigmasq"],
-  mu_sq    = function(theta, y) theta["mu"]^2,
-  log_like = function(theta, y)
-    sum(dnorm(y, theta["mu"], sqrt(theta["sigmasq"]), log = TRUE))
-)
-
-plot_geweke_tests(direct_draws, gibbs_draws, test_fns)
-tabulate_geweke_tests(direct_draws, gibbs_draws, test_fns)
-```
-
----
+------------------------------------------------------------------------
 
 ## 3. Run distributional shift analysis — correct sampler
 
-For a correct sampler the two populations come from the same joint distribution
-p(θ, y), so the classifier accuracy should be near 0.50 and all divergences
-near zero.
+For a correct sampler the two populations come from the same joint distribution p(θ, y), so the classifier accuracy should be near 0.50 and all divergences near zero.
 
 ```{r}
 shift_res <- run_distributional_shift(
@@ -135,7 +117,7 @@ Divergence metrics table (Method 3):
 tabulate_shift_divergences(shift_res)
 ```
 
----
+------------------------------------------------------------------------
 
 ## 4. Visualise the three methods — correct sampler
 
@@ -157,12 +139,11 @@ Method 3: blue and red curves should overlap closely.
 plot_shift_densities(direct_draws, gibbs_draws, shift_res)
 ```
 
----
+------------------------------------------------------------------------
 
 ## 5. Deliberately broken sampler
 
-Replace the Gibbs sampler with one that never updates `mu` — the variance block
-runs correctly but the mean is stuck at its initialisation value.
+Replace the Gibbs sampler with one that never updates `mu` — the variance block runs correctly but the mean is stuck at its initialisation value.
 
 ```{r}
 broken_posterior <- function(ndraws, y, prior_hyper_params,
@@ -201,8 +182,7 @@ shift_broken <- run_distributional_shift(
 )
 ```
 
-`mu` should dominate the importance ranking with a large divergence; `sigmasq`
-should look fine:
+`mu` should dominate the importance ranking with a large divergence; `sigmasq` should look fine:
 
 ```{r}
 shift_broken$synthesis
@@ -230,11 +210,11 @@ plot_shift_densities(direct_draws, gibbs_broken, shift_broken,
                      label_B = "Broken Gibbs")
 ```
 
----
+------------------------------------------------------------------------
 
 ## User workflow summary
 
-```
+```         
 source("R/geweke.R")
 source("R/testfunctions.R")
 source("R/DistributionShift.R")

@@ -15,6 +15,20 @@
 
 #successive conditional: sc
 
+#helper function to determine whether to keep a draw
+
+keep_draw <- function(draw_num, n_burn, n_thin) {
+  if (draw_num < n_burn) {
+    return(FALSE)
+  }
+
+  if ((draw_num - n_burn) %% n_thin == 0) {
+    return(TRUE)
+  }
+
+  return(FALSE)
+}
+
 #' @export
 geweke_sc_draws <- function(prior_sampler,
                             likelihood_sampler,
@@ -22,7 +36,13 @@ geweke_sc_draws <- function(prior_sampler,
                             n_obs,
                             n_draws,
                             prior_hyper_params,
-                            n_burnin = 1000) {
+                            n_burn = 1000,
+                            n_thin = 5) {
+
+  #set total loop iterations using burn-in and thinning inputs
+  total_draws <- n_burn + n_draws*n_thin
+
+  saved_draws <- n_draws #floor(n_draws / n_thin)
 
   #get info about parameters
 
@@ -30,11 +50,7 @@ geweke_sc_draws <- function(prior_sampler,
 
   n_params <- length(prior_draw)
   varnames <- names(prior_draw)
-
-  #colnames (pre-rank/z-score computation): sim_id, variable, simulated_value
-  #to be mutated() later: rank, z_score, mean
-
-  n_row <- n_params * n_draws #number of params x number of simulations
+  n_row <- n_params * saved_draws #num params x num saved simulations
 
   #preallocate storage for all of the draws
   draws_matrix <- data.frame(matrix(0, nrow = n_row, ncol = 3,
@@ -45,8 +61,8 @@ geweke_sc_draws <- function(prior_sampler,
                                             )
                             )) #sim_id, variable, simulated_value
 
-  theta_matrix <- matrix(0, nrow = n_draws, ncol = n_params)
-  y_matrix <- matrix(0, nrow = n_draws, ncol = n_obs)
+  theta_matrix <- matrix(0, nrow = saved_draws, ncol = n_params)
+  y_matrix <- matrix(0, nrow = saved_draws, ncol = n_obs)
 
   colnames(theta_matrix) <- varnames
   colnames(y_matrix) <- paste0("y", 1:n_obs)
@@ -55,47 +71,46 @@ geweke_sc_draws <- function(prior_sampler,
   theta <- prior_draw
   y <- runif(n_obs) #using user input
 
-  # burnin: run chain forward without storing
-  for (b in 1:n_burnin) {
-    theta <- posterior_sampler(ndraws = 1, y = y,
-                               prior_hyper_params = prior_hyper_params)
-    colnames(theta) <- varnames
-    theta <- theta[1, ]
-    y     <- likelihood_sampler(n_obs, theta)
-  }
-  # then your existing loop follows unchanged
-
-  for (m in 1:n_draws) {
+  for (m in 1:total_draws) {
     #simulate from the posterior
+
     theta <- posterior_sampler(ndraws = 1,
                                y = y,
                                prior_hyper_params = prior_hyper_params)
     colnames(theta) <- varnames
     theta <- theta[1, ]
-    theta_matrix[m, ] <- theta
 
     #simulate data given the latest parameter values
     y <- likelihood_sampler(n_obs, theta)
-    y_matrix[m, ] <- y
 
-    #cycle through rows for one simulation
-    for (var in varnames) {
-      index <- n_params*(m - 1) + which(varnames == var)
+    if (keep_draw(m, n_burn, n_thin)) { #decide whether to save the draw
 
-      draws_matrix[index, "sim_id"] <- m #constant across variables
-      draws_matrix[index, "variable"] <- var
-      draws_matrix[index, "simulated_value"] <- theta[var]
+      #calculate simulation ID
+      n <- (m - n_burn) / n_thin
+
+      #store draws in respective matrices
+      theta_matrix[n, ] <- theta
+      y_matrix[n, ] <- y
+
+      #for long matrix: cycle through rows for one simulation
+      for (var in varnames) {
+        index <- n_params*(n - 1) + which(varnames == var)
+
+        draws_matrix[index, "sim_id"] <- n #constant across variables
+        draws_matrix[index, "variable"] <- var
+        draws_matrix[index, "simulated_value"] <- theta[var]
+      }
     }
   }
 
   #add the rank column for plotting in SBC
 
-  draws_matrix$max_rank <- n_draws
-
-  draws_matrix$rank <- sapply(seq_len(nrow(draws_matrix)), function(i) {
-    post <- theta_matrix[, draws_matrix$variable[i]]
-    sum(post < as.numeric(draws_matrix$simulated_value[i]))
-  })
+  # draws_matrix$max_rank <- n_draws
+  #
+  # draws_matrix$rank <- sapply(seq_len(nrow(draws_matrix)), function(i) {
+  #   post <- theta_matrix[, draws_matrix$variable[i]]
+  #   sum(post < as.numeric(draws_matrix$simulated_value[i]))
+  # })
 
   #pivot to wide format: 1 row/simulation
 
@@ -314,4 +329,5 @@ plot_geweke_tests <- function(direct_draws,
   # reset plot layout
   par(mfrow = c(1, 1))
 }
+
 

@@ -37,7 +37,8 @@ geweke_sc_draws <- function(prior_sampler,
                             n_draws,
                             prior_hyper_params,
                             n_burn = 1000,
-                            n_thin = 5) {
+                            n_thin = 5,
+                            debug = FALSE) {
 
   #set total loop iterations using burn-in and thinning inputs
   total_draws <- n_burn + (n_draws - 1) *n_thin
@@ -88,6 +89,10 @@ geweke_sc_draws <- function(prior_sampler,
 
       #calculate simulation ID
       n <- 1 + (m - n_burn) / n_thin
+
+      if (debug) {
+        print(paste("m = ", m, "/ n =", n, "/ saved_draws" = saved_draws))
+      }
 
       #store draws in respective matrices
       theta_matrix[n, ] <- theta

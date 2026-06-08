@@ -226,6 +226,10 @@ tabulate_geweke_tests <- function(direct_draws,
   for (nm in names(test_functions)) {
     fn <- test_functions[[nm]]
 
+    stat_names <- c("Geweke statistic", "Geweke p_value",
+                    "KS statistic", "KS p_value",
+                    "Convergence statistic", "Convergence p_value")
+
     # apply test function to get scalar per draw
     # from Claude
     g_mc <- as.numeric(sapply(seq_len(nrow(direct_draws$theta)), function(i) {
@@ -245,8 +249,8 @@ tabulate_geweke_tests <- function(direct_draws,
     gw <- geweke_test(g_mc, g_sc)
 
     #add results
-    results_matrix[nm, "Geweke statistic"] <- gw$stat
-    results_matrix[nm, "Geweke p_value"] <- gw$p_value
+    results_matrix[nm, stat_names[1]] <- gw$stat
+    results_matrix[nm, stat_names[2]] <- gw$p_value
 
     #KS test: next 2 rows --
 
@@ -254,8 +258,8 @@ tabulate_geweke_tests <- function(direct_draws,
     ks <- stats::ks.test(g_mc, g_sc)
 
     #add results
-    results_matrix[nm, "KS statistic"] <- ks$statistic
-    results_matrix[nm, "KS p_value"] <- ks$p.value
+    results_matrix[nm, stat_names[3]] <- ks$statistic
+    results_matrix[nm, stat_names[4]] <- ks$p.value
 
     #MCMC convergence test: last 2 rows --
 
@@ -264,11 +268,11 @@ tabulate_geweke_tests <- function(direct_draws,
     conv        <- coda::geweke.diag(gibbs_chain)
 
     #add results
-    results_matrix[nm, "Convergence statistic"] <- as.numeric(conv$z)
-    results_matrix[nm, "Convergence p_value"] <- 2 * pnorm(-abs(conv$z))
+    results_matrix[nm, stat_names[5]] <- as.numeric(conv$z)
+    results_matrix[nm, stat_names[6]] <- 2 * pnorm(-abs(conv$z))
   }
 
-  return(data.frame(results_matrix))
+  return(as.data.frame(results_matrix, col.names = stat_names))
 }
 
 #' @export
@@ -309,3 +313,4 @@ plot_geweke_tests <- function(direct_draws,
   # reset plot layout
   par(mfrow = c(1, 1))
 }
+

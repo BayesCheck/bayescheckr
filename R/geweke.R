@@ -145,22 +145,11 @@ geweke_mc_draws <- function(prior_sampler,
 
   #set up the generator function for SBC
 
-  #maybe use the .generator_single function written in sbc.R instead?
-  generator_single <- function() {
-    theta <- prior_sampler(prior_hyper_params)
-    y <- likelihood_sampler(n_obs, theta)
+  gen <- SBC::SBC_generator_function(
+    .make_generator_single(prior_sampler, likelihood_sampler,
+                           n_obs, prior_hyper_params)
+  )
 
-    #return list
-
-    list(
-      variables = as.list(theta),
-      generated = list(y = y)
-      )
-  }
-
-  #directly sample parameters and draws
-  #need to parallelize for speed
-  gen <- SBC::SBC_generator_function(generator_single)
   gen_data <- SBC::generate_datasets(gen, n_draws) # = n_sims? check
 
   #store

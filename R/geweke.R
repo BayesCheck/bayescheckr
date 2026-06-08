@@ -211,6 +211,38 @@ geweke_test <- function(g_mc,
 }
 
 #' @export
+
+apply_test_functions <- function(direct_draws, gibbs_draws, test_functions) {
+
+  n_row <- nrow(direct_draws$theta) #same for Gibbs
+
+  direct_test_matrix <- matrix(NA, nrow = n_row,
+                               ncol = length(test_functions),
+                               dimnames = list(NULL, names(test_functions)))
+
+  gibbs_test_matrix <- matrix(NA, nrow = n_row,
+                              ncol = length(test_functions),
+                              dimnames = list(NULL, names(test_functions)))
+
+  for (nm in names(test_functions)) {
+    fn <- test_functions[[nm]]
+
+    direct_test_matrix[, nm] <- as.numeric(sapply(
+      seq_len(n_row), function(i) {
+        fn(direct_draws$theta[i, ], as.numeric(direct_draws$y[i, ]))
+      }
+    ))
+
+    gibbs_test_matrix[, nm] <- as.numeric(sapply(
+      seq_len(n_row), function(i) {
+        fn(gibbs_draws$theta[i, ], as.numeric(gibbs_draws$y[i, ]))
+      }
+    ))
+  }
+
+  return(list(direct = direct_test_matrix, gibbs = gibbs_test_matrix))
+}
+
 tabulate_geweke_tests <- function(direct_draws,
                                   gibbs_draws,
                                   test_functions) {
@@ -218,6 +250,14 @@ tabulate_geweke_tests <- function(direct_draws,
   #allocate storage for results: 2 stats x n tests - same as testfunctions.R
   stats <- c("statistic", "p_value")
   tests <- c("Geweke", "KS", "Convergence")
+
+  stat_names <- c("Geweke statistic", "Geweke p_value",
+                  "KS statistic", "KS p_value",
+                  "Convergence statistic", "Convergence p_value")
+
+  test_matrix <- apply_test_functions(direct_draws,
+                                      gibbs_draws,
+                                      test_functions)
 
   results_matrix <- matrix(NA, nrow = length(test_functions), ncol = 6,
                            dimnames =
@@ -234,24 +274,17 @@ tabulate_geweke_tests <- function(direct_draws,
   #to be consistent
 
   for (nm in names(test_functions)) {
-    fn <- test_functions[[nm]]
 
-    stat_names <- c("Geweke statistic", "Geweke p_value",
-                    "KS statistic", "KS p_value",
-                    "Convergence statistic", "Convergence p_value")
+    # g_mc <- as.numeric(sapply(seq_len(nrow(direct_draws$theta)), function(i) {
+    #   fn(direct_draws$theta[i, ], as.numeric(direct_draws$y[i, ]))
+    # }))
+    #
+    # g_sc <- as.numeric(sapply(seq_len(nrow(gibbs_draws$theta)), function(i) {
+    #   fn(gibbs_draws$theta[i, ], as.numeric(gibbs_draws$y[i, ]))
+    # }))
 
-    # apply test function to get scalar per draw
-    # from Claude
-    g_mc <- as.numeric(sapply(seq_len(nrow(direct_draws$theta)), function(i) {
-      fn(direct_draws$theta[i, ], as.numeric(direct_draws$y[i, ]))
-    }))
-
-    g_sc <- as.numeric(sapply(seq_len(nrow(gibbs_draws$theta)), function(i) {
-      fn(gibbs_draws$theta[i, ], as.numeric(gibbs_draws$y[i, ]))
-    }))
-
-    # g_mc <- apply(direct_draws$theta, 1, fn)
-    # g_sc <- apply(gibbs_draws$theta,  1, fn)
+    g_mc <- test_matrix$direct[, nm]
+    g_sc <- test_matrix$gibbs[, nm]
 
     #Geweke test: first 2 rows --
 
@@ -291,6 +324,10 @@ plot_geweke_tests <- function(direct_draws,
                               test_functions,
                               probs = seq(0.05, 0.95, by = 0.05)) {
 
+  test_matrix <- apply_test_functions(direct_draws,
+                                      gibbs_draws,
+                                      test_functions)
+
   #probs <- seq(0.05, 0.95, by = 0.05)
   n_fns <- length(test_functions)
 
@@ -298,16 +335,9 @@ plot_geweke_tests <- function(direct_draws,
   par(mfrow = c(ceiling(n_fns / 3), 3))
 
   for (nm in names(test_functions)) {
-    fn <- test_functions[[nm]]
 
-    # apply test function to get scalar per draw
-    g_mc <- as.numeric(sapply(seq_len(nrow(direct_draws$theta)), function(i) {
-      fn(direct_draws$theta[i, ], direct_draws$y[i, ])
-    }))
-
-    g_sc <- as.numeric(sapply(seq_len(nrow(gibbs_draws$theta)), function(i) {
-      fn(gibbs_draws$theta[i, ], gibbs_draws$y[i, ])
-    }))
+    g_mc <- test_matrix$direct[, nm]
+    g_sc <- test_matrix$gibbs[, nm]
 
     # compute quantiles and plot
     quantiles_direct <- quantile(g_mc, probs)
@@ -324,5 +354,3 @@ plot_geweke_tests <- function(direct_draws,
   # reset plot layout
   par(mfrow = c(1, 1))
 }
-
-

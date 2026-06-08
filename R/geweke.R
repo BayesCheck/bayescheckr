@@ -278,9 +278,10 @@ tabulate_geweke_tests <- function(direct_draws,
 #' @export
 plot_geweke_tests <- function(direct_draws,
                               gibbs_draws,
-                              test_functions) {
+                              test_functions,
+                              probs = seq(0.05, 0.95, by = 0.05)) {
 
-  probs <- seq(0.05, 0.95, by = 0.05)
+  #probs <- seq(0.05, 0.95, by = 0.05)
   n_fns <- length(test_functions)
 
   # set up plot grid

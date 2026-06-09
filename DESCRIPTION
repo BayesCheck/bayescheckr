@@ -22,6 +22,9 @@ Imports:
     stats,
     coda,
     mvtnorm
+    e1071, 
+    cluster,
+    patchwork
 Remotes:
     hyunjimoon/SBC
 

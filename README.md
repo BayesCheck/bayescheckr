@@ -22,7 +22,8 @@ devtools::load_all(".")
 
 ## Quick start
 
-The three things you always need to provide are a **prior sampler**, a **likelihood sampler**, and a **posterior sampler**. bayescheckr does the rest.
+The three things you always need to provide are a **prior sampler**, a **likelihood sampler**, and a **posterior sampler**. 
+You might also want to set some prior hyperparameters. `bayescheckr` does the rest.
 
 ``` r
 library(bayescheckr)
@@ -35,7 +36,7 @@ my_prior <- function(hyper) {
   c(mu = rnorm(1, mean = hyper$mu_0, sd = hyper$sigma_0))
 }
 
-# 2. Likelihood: (n_obs, theta) -> length-n numeric vector
+# 2. Likelihood: (n_obs, theta) -> returns a matrix or list (best to make output general).
 my_likelihood <- function(n, theta) {
   rnorm(n, mean = theta["mu"], sd = prior_hyper_params$sigma)
 }
@@ -72,15 +73,6 @@ SBC::plot_rank_hist(result$sbc_result)
 
 # ECDF difference — should hug zero
 SBC::plot_ecdf_diff(result$sbc_result)
-```
-
-### Scalar diagnostics
-
-``` r
-rank_mean_test(result$sbc_result, L = 500)      # observed mean ≈ L/2
-rank_variance_test(result$sbc_result, L = 500)  # ratio ≈ 1.0
-rank_ks_test(result$sbc_result, L = 500)        # large p-value
-rank_kl_divergence(result$sbc_result, L = 500)  # near 0
 ```
 
 ### Test functions
@@ -192,7 +184,8 @@ All three samplers must follow these exact signatures:
 # Prior: no arguments other than hyperparameters; returns a named vector
 prior_sampler <- function(prior_hyper_params) { ... }
 
-# Likelihood: (n_obs, theta) -> numeric vector of length n_obs
+# Likelihood: (n_obs, theta) -> numeric vector of length n_obs,
+#             or matrix of dimensions n_obs x p for multivariate observations
 likelihood_sampler <- function(n_obs, theta) { ... }
 
 # Posterior: (ndraws, y, prior_hyper_params) -> ndraws x n_params matrix

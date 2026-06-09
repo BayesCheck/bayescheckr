@@ -90,10 +90,6 @@ geweke_sc_draws <- function(prior_sampler,
       #calculate simulation ID
       n <- 1 + (m - n_burn) / n_thin
 
-      if (debug) {
-        print(paste("m = ", m, "& n = ", n, "& saved_draws" = saved_draws))
-      }
-
       #store draws in respective matrices
       theta_matrix[n, ] <- theta
       y_matrix[n, ] <- y
@@ -108,15 +104,6 @@ geweke_sc_draws <- function(prior_sampler,
       }
     }
   }
-
-  #add the rank column for plotting in SBC
-
-  # draws_matrix$max_rank <- n_draws
-  #
-  # draws_matrix$rank <- sapply(seq_len(nrow(draws_matrix)), function(i) {
-  #   post <- theta_matrix[, draws_matrix$variable[i]]
-  #   sum(post < as.numeric(draws_matrix$simulated_value[i]))
-  # })
 
   #pivot to wide format: 1 row/simulation
 
@@ -194,7 +181,6 @@ run_geweke <- function(prior_sampler,
                        n_burn = 1000,
                        n_thin = 5,
                        prior_hyper_params,
-                       debug = FALSE,
                        parallelize = TRUE) {
 
   #0. Validate stuff:
@@ -231,7 +217,7 @@ run_geweke <- function(prior_sampler,
                                  prior_hyper_params = prior_hyper_params,
                                  debug)
 
-  return(list(direct = direct_draws, gibbs = gibbs_draws))
+  return(list(direct_draws = direct_draws, gibbs_draws = gibbs_draws))
 }
 
 

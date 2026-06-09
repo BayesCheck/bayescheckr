@@ -2,4 +2,239 @@
 title: "Example iid normal"
 format: html
 ---
+set seed first
+```{r}
+set.seed(42)
+```
+
+Load our package:
+
+```{r}
+#| label: load-our-code
+source("R/sbc.R")
+source("R/geweke.R")
+source("R/DsitributionShift.R")
+source("R/testfunctions.R")
+```
+
+add our samplers
+
+```{r}
+prior_sampler <- function(prior_hyper_params) {
+  
+  a0 <- prior_hyper_params$a0
+  b0 <- prior_hyper_params$b0
+  mu0 <- prior_hyper_params$mu0
+  v20 <- prior_hyper_params$v20
+  
+  # simulate mu ~ N(mu0, v20)
+  mu <- rnorm(1, mu0, sqrt(v20))
+  
+  # independently simulate sigma2 ~ IG(a0, b0)
+  sigma2 <- 1 / rgamma(1, a0, rate = b0)
+
+  return(c(mu = mu, sigma2 = sigma2))
+}
+
+#---------------------------------------------------------------
+#---------------------------------------------------------------
+likelihood_sampler <- function(n, theta) {
+  
+  mu <- theta[1]
+  sigma2 <- theta[2]
+  
+  y <- rnorm(n, mu, sqrt(sigma2))
+  
+  return(y)
+}
+
+#---------------------------------------------------------------
+#---------------------------------------------------------------
+posterior_sampler <- function(ndraws, y, prior_hyper_params,
+                              init = c(mean(y), var(y))) {
+
+  a0 <- prior_hyper_params$a0
+  b0 <- prior_hyper_params$b0
+  mu0 <- prior_hyper_params$mu0
+  v20 <- prior_hyper_params$v20
+  n <- length(y)
+
+  # preallocate storage
+  THETA <- matrix(0, nrow = ndraws, ncol = length(init))
+  
+  # initialize
+  theta <- init
+
+  for(s in 1:ndraws){
+    
+    # draw mean given variance and data
+    
+    v2n = 1 / (1/v20 + n/theta[2]) 
+    mun = v2n * (mu0/v20 + sum(y)/theta[2])
+    
+    theta[1] <- rnorm(1, mun, sqrt(v2n))
+    
+    # draw variance given mean and data
+    
+    an = a0 + n/2
+    bn = b0 + sum((y - theta[1])^2) / 2
+    
+    theta[2] <- 1 / rgamma(1, shape = an, rate = bn)
+    
+    # store the latest draw in the sth row of the THETA matrix
+    
+    THETA[s, ] <- theta
+    
+  }
+  
+  colnames(THETA) <- c("mu", "sigma2")
+  return(THETA)
+}
+
+
+```
+
+Set hyperparameters and initialize other values of interest:
+
+```{r}
+#| label: define-hyperparams
+
+prior_hyper_params <- list(a0 = 1, b0 = 1, mu0 = 0, v20 = 1)
+
+n_draws <- 5e4
+n_obs <- 10
+```
+
+get draws 
+```{r}
+
+draws <- run_geweke(prior_sampler = prior_sampler,
+                    likelihood_sampler = likelihood_sampler,
+                    posterior_sampler = posterior_sampler,
+                    n_obs = n_obs, n_draws = n_draws, n_thin = 2,
+                    prior_hyper_params = prior_hyper_params)
+```
+
+
+We can see our draws in both a long format (compatible with SBC) or the standard format. 
+```{r}
+
+direct_draws <- draws$direct
+gibbs_draws <- draws$gibbs
+
+
+direct_draws$draws
+gibbs_draws$draws
+```
+
+Great! We have our draws. Now let's do all of our test functions to compare them quantitatively and qualitatively.
+
+Time to define our test functions in a specific way. Like this:
+
+```{r}
+test_fns <- make_test_functions(
+  mu_marg = function(theta, y) theta["mu"],
+  sigmasq_marg = function(theta, y) theta["sigma2"],
+  mu_sq    = function(theta, y) theta["mu"]^2,
+  prod = function(theta, y) theta["mu"] * theta["sigma2"],
+  log_like = function(theta, y) sum(dnorm(y, theta["mu"], sqrt(theta["sigma2"]), log = TRUE))
+)
+```
+
+Quantitative comparison using `tabulate_geweke_tests`:
+
+```{r}
+#| label: geweke-test-chart
+
+tabulate_geweke_tests(direct_draws = direct_draws,
+                 gibbs_draws = gibbs_draws,
+                 test_functions = test_fns)
+```
+The output is a table! Cute.
+
+Make some QQ plots:
+
+```{r}
+#| label: geweke-test-qq-plots
+
+plot_geweke_tests(direct_draws = direct_draws,
+                 gibbs_draws = gibbs_draws,
+                 test_functions = test_fns,
+                 probs = seq(0.01, 0.99, 0.01))
+```
+
+
+For visual comparison, we made the outputs compatible with SBC plotting functions. But methodologically. Gibbs sampling isn't really built for rank computation, so it's not a meaningful result.
+
+```{r}
+#| label: plot-geweke-on-sbc-graphs
+
+SBC::plot_rank_hist(gibbs_draws$draws)
+SBC::plot_ecdf(gibbs_draws$draws)
+SBC::plot_ecdf_diff(gibbs_draws$draws)
+```
+
+OK so now we have all our Geweke stuff. 
+
+Now we do SBC.
+
+```{r}
+res <- run_sbc(
+  prior_sampler      = prior_sampler,
+  likelihood_sampler = likelihood_sampler,
+  posterior_sampler  = posterior_sampler,
+  n_sims             = 500,        # small for testing
+  n_obs              = 50,
+  n_draws            = 500,        # small for testing
+  prior_hyper_params = prior_hyper_params,
+  parallelize        = TRUE
+)
+```
+
+```{r}
+SBC::plot_rank_hist(res$sbc_result)
+```
+```{r}
+SBC::plot_ecdf_diff(res$sbc_result)
+```
+Ok great! Time to see if we can now use our package to run some test functions on it.
+
+```{r}
+source("R/testfunctions.R")
+```
+
+We need to define our test functions in a specific way. Like this:
+
+```{r}
+test_fns <- make_test_functions(
+  mu = function(theta, y) theta["mu"],
+  sigmasq = function(theta, y) theta["sigmasq"],
+  mu_sq = function(theta, y) theta["mu"]^2,
+  product = function(theta, y) theta["mu"] * theta["sigmasq"],
+  log_like = function(theta, y) sum(dnorm(y, 
+                                          mean = theta["mu"], 
+                                          sd = sqrt(theta["sigmasq"]),
+                                          log = TRUE))
+)
+```
+
+Recompute ranks using our new function:
+
+```{r}
+ranks_test <- recompute_ranks(res, test_fns)
+```
+
+We use the `.ranks_to_sbc_results` function as an intermediary: it formats our recomputed ranks `ranks_test` object into the shape expected by the SBC plot functions.
+
+```{r}
+ranks_res <- ranks_to_sbc_results(ranks_test)
+```
+
+Then we can call the SBC plot functions on the appropriately formatted `ranks_res` object:
+
+```{r}
+SBC::plot_rank_hist(ranks_res)
+SBC::plot_ecdf_diff(ranks_res)
+```
+
 

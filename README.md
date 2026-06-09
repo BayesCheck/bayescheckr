@@ -106,7 +106,7 @@ SBC::plot_ecdf_diff(shell)
 
 ## Geweke test
 
-The Geweke test compares two arms that should share the same stationary distribution:
+The Geweke test compares two samplers that should share the same stationary distribution:
 
 - **Direct (marginal-conditional)** draws: sample θ from the prior, then y from the likelihood. These are i.i.d. draws from the joint distribution p(θ, y).
 - **Successive-conditional (Gibbs)** draws: starting from any initial value, alternate between drawing θ \| y from the posterior and y \| θ from the likelihood. At stationarity these are also draws from p(θ, y).

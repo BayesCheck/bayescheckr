@@ -57,6 +57,8 @@ prior_hyper_params <- list(
 )
 ```
 
+Now we code up our samplers to input to the `bayescheckr` functions. Notes for the sampler function formatting: the posterior sampler MUST take an init argument to initialize theta, and the likelihood sampler MUST only take the n_obs and theta arguments. 
+
 The prior is:
 
 ```{r}
@@ -99,7 +101,7 @@ likelihood_sampler <- function(n_obs, theta, X){
   beta <- theta[1:p]
   sig2 <- theta[p+1]
   
-  y <- X %*% beta + rnorm(n_obs, mean = 0, sd = sqrt(sig2))
+  y <- as.numeric(X %*% beta) + rnorm(n_obs, mean = 0, sd = sqrt(sig2))
   
   return(y)
 }
@@ -114,7 +116,8 @@ And finally our Gibbs posterior sampler:
 ```{r}
 #| label: posterior-sampler-gibbs
 
-posterior_sampler <- function(ndraws, y, prior_hyper_params){
+posterior_sampler <- function(ndraws, y, prior_hyper_params, init = c(rep(0, p), 1))
+  {
   
   # unpack everything
   X      <- prior_hyper_params$X
@@ -130,7 +133,7 @@ posterior_sampler <- function(ndraws, y, prior_hyper_params){
   colnames(THETA) <- c("beta1", "beta2", "sigmasq")
   
   #initialize values
-  theta <- c(rep(0, p), 1)
+  theta <- init
   
   v_0_inv <- solve(v_0)
   X_trans <- t(X)

@@ -11,9 +11,10 @@ Load our package:
 
 ```{r}
 #| label: load-our-code
+
 source("R/sbc.R")
 source("R/geweke.R")
-source("R/DsitributionShift.R")
+source("R/DistributionShift.R")
 source("R/testfunctions.R")
 ```
 

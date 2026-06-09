@@ -189,4 +189,73 @@ gibbs_results <- run_geweke(
 )
 ```
 
+### SBC checks
+
+The `run_sbc` function computes rank of draws from the posterior and lets us check for uniformity:
+
+```{r}
+sbc_results <- run_sbc(
+  prior_sampler = prior_sampler,
+  likelihood_sampler = likelihood_sampler_wrapped,
+  posterior_sampler = posterior_sampler,
+  n_obs = n_obs,
+  n_draws = 1000,
+  n_sims = 500,
+  prior_hyper_params = prior_hyper_params,
+  parallelize = TRUE
+)
+```
+Let's check the marginals:
+```{r}
+SBC::plot_rank_hist(sbc_results$sbc_result)
+SBC::plot_ecdf(sbc_results$sbc_result)
+SBC::plot_ecdf_diff(sbc_results$sbc_result)
+```
+
+As expected, all fitting within the blue bands.
+
+## Test functions
+
+Make some test functions:
+
+```{r}
+test_fns <- make_test_functions(
+  product = function(theta, y) theta["beta1"] * theta["beta2"] * theta["sigmasq"],
+  log_like = function(theta, y) {
+              X    <- prior_hyper_params$X
+              p    <- length(theta) - 1
+              beta <- theta[1:p]
+              sig2 <- theta["sigmasq"]
+              sum(dnorm(y, mean = X %*% beta, sd = sqrt(sig2), log = TRUE))
+},
+  betas_distance = function(theta, y) abs(theta["beta1"] - theta["beta2"])
+)
+```
+
+### Geweke on test functions
+
+```{r}
+tabulate_geweke_tests(direct_draws = gibbs_results$direct_draws,
+                 gibbs_draws = gibbs_results$gibbs_draws,
+                 test_functions = test_fns)
+```
+
+```{r}
+plot_geweke_tests(direct_draws = gibbs_results$direct_draws,
+                 gibbs_draws = gibbs_results$gibbs_draws,
+                 test_functions = test_fns)
+```
+### SBC on test functions
+
+```{r}
+ranks_test <- recompute_ranks(sbc_results, test_fns)
+
+ranks_res <- ranks_to_sbc_results(ranks_test)
+```
+
+```{r}
+SBC::plot_rank_hist(ranks_res)
+SBC::plot_ecdf(ranks_res)
+SBC::plot_ecdf_diff(ranks_res)
+```
 

@@ -19,7 +19,7 @@ run_sbc <- function(prior_sampler,
                     posterior_sampler,
                     n_sims,
                     n_obs,
-                    n_draws,
+                    n_draws = 1e4,
                     prior_hyper_params,
                     parallelize = FALSE){
 

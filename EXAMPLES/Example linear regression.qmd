@@ -1,0 +1,120 @@
+---
+title: "Example linear regression"
+format: html
+---
+
+Load our package:
+
+```{r}
+source("R/sbc.r")
+```
+
+Taken from `SBC on linear regression.qmd`, in `rzmautner`'s sandbox, hyperparameters were modified into a single object (a list) to match the generality of the package:
+
+```{r}
+prior_hyper_params <- list(
+  beta_0 = c(0,0),
+  v_0 = diag(2),
+  a_0 = 1,
+  b_0 = 1,
+  X = matrix(rnorm(5 * 2), nrow = 5, ncol = 2)
+)
+```
+
+So our prior is:
+
+```{r}
+#| label: prior_sampler
+
+prior_sampler <- function(prior_hyper_params){
+  
+  beta_0 <- prior_hyper_params$beta_0
+  v_0    <- prior_hyper_params$v_0
+  a_0    <- prior_hyper_params$a_0
+  b_0    <- prior_hyper_params$b_0
+  
+  #simulate betas
+  beta <- as.vector(mvtnorm::rmvnorm(1, beta_0, v_0))
+  
+  #simulate sigma squared
+  sig2 <- 1 / rgamma(1, shape = a_0, rate = b_0)
+  
+  return(c(beta1 = beta[1], beta2 = beta[2], sigmasq = sig2)) 
+}
+```
+
+^with minimal modifications to unpack a single `prior_hyper_params` object and to return a named vector instead of unnamed.
+
+Now the likelihood:
+
+```{r}
+#| label: likelihood_sampler
+
+likelihood_sampler <- function(n, theta){
+  
+  #note: We have to put X in prior_hyper_params and unpack it here.
+  #This is because the contract in our package is that likelihood_sampler gets
+  #only n and theta as inputs.
+  
+  X <- prior_hyper_params$X
+  
+  p <- length(theta) - 1
+  
+  beta <- theta[1:p]
+  sig2 <- theta[p+1]
+  
+  y <- X %*% beta + rnorm(n, mean = 0, sd = sqrt(sig2))
+  
+  return(y)
+}
+```
+
+And finally our Gibbs posterior sampler:
+
+```{r}
+#| label: posterior-sampler-gibbs
+
+posterior_sampler <- function(ndraws, y, prior_hyper_params){
+  
+  # unpack everything
+  X      <- prior_hyper_params$X
+  beta_0 <- prior_hyper_params$beta_0
+  v_0    <- prior_hyper_params$v_0
+  a_0    <- prior_hyper_params$a_0
+  b_0    <- prior_hyper_params$b_0
+  
+  #pre-allocate storage and initialize
+  p <- ncol(X)
+  n_obs <- length(y)
+  THETA <- matrix(0, nrow = ndraws, ncol = p+1)
+  colnames(THETA) <- c("beta1", "beta2", "sigmasq")
+  
+  #initialize values
+  theta <- c(rep(0, p), 1)
+  
+  v_0_inv <- solve(v_0)
+  X_trans <- t(X)
+  
+  for(s in 1:ndraws){
+    
+    beta_n <- solve( v_0_inv + (X_trans%*%X)/theta[p+1] ) %*% 
+      ( v_0_inv%*%beta_0 + (X_trans%*%y)/theta[p+1] )
+    
+    v_n <- solve( v_0_inv + (X_trans%*%X)/theta[p+1] )
+    
+    theta[1:p] <- mvtnorm::rmvnorm(1, beta_n, v_n)
+    
+    #draw from updated sigma
+    ssr <- t(y - X%*%theta[1:p])%*%(y - X%*%theta[1:p])
+    
+    a_n <- a_0 + n_obs/2
+    b_n <- ssr/2 + b_0
+    
+    theta[p+1] <- 1 / rgamma(1, shape = a_n, rate = b_n)
+    
+    THETA[s, ] <- theta
+    
+  }
+  return(THETA)
+}
+```

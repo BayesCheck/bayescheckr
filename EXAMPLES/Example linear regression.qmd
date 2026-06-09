@@ -248,7 +248,7 @@ plot_geweke_tests(direct_draws = gibbs_results$direct_draws,
 ### SBC on test functions
 
 ```{r}
-ranks_test <- recompute_ranks(sbc_results, test_fns)
+ranks_test <- recompute_ranks(sbc_results, test_fns, n_thin = 10)
 
 ranks_res <- ranks_to_sbc_results(ranks_test)
 ```

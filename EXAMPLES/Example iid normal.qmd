@@ -169,6 +169,7 @@ For visual comparison, we made the outputs compatible with SBC plotting function
 
 ```{r}
 #| label: plot-geweke-on-sbc-graphs
+#| eval: false
 
 SBC::plot_rank_hist(gibbs_draws$draws)
 SBC::plot_ecdf(gibbs_draws$draws)

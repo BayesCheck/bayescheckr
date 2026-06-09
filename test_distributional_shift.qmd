@@ -24,15 +24,34 @@ Same conjugate normal–inverse-gamma model used in `test_Geweke_iid_normal.qmd`
 ```{r}
 prior_hyper_params <- c(a0 = 1, b0 = 1, mu0 = 0, v20 = 1)
 
+#prior_sampler <- function(prior_hyper_params) {
+#  a0  <- prior_hyper_params[["a0"]]
+#  b0  <- prior_hyper_params[["b0"]]
+#  mu0 <- prior_hyper_params[["mu0"]]
+#  v20 <- prior_hyper_params[["v20"]]
+#  mu     <- rnorm(1, mu0, sqrt(v20))
+#  sigma2 <- 1 / rgamma(1, a0, rate = b0)
+#  c(mu = mu, sigmasq = sigma2)
+#}
+
 prior_sampler <- function(prior_hyper_params) {
+
   a0  <- prior_hyper_params[["a0"]]
   b0  <- prior_hyper_params[["b0"]]
-  mu0 <- prior_hyper_params[["mu0"]]
-  v20 <- prior_hyper_params[["v20"]]
-  mu     <- rnorm(1, mu0, sqrt(v20))
+
+  z <- rbinom(1, 1, 0.5)
+
+  mu <- if (z == 0) {
+    rnorm(1, -5, 1)
+  } else {
+    rnorm(1, 5, 1)
+  }
+
   sigma2 <- 1 / rgamma(1, a0, rate = b0)
+
   c(mu = mu, sigmasq = sigma2)
 }
+
 
 likelihood_sampler <- function(n, theta) {
   rnorm(n, mean = theta[["mu"]], sd = sqrt(theta[["sigmasq"]]))

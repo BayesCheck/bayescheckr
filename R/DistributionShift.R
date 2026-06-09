@@ -64,7 +64,7 @@
 
 .auto_radius <- function(theta_matrix, max_rows = 500) {
   idx <- sample(nrow(theta_matrix), min(max_rows, nrow(theta_matrix)))
-  2 * median(dist(theta_matrix[idx, , drop = FALSE]))
+  2* median(dist(theta_matrix[idx, , drop = FALSE]))
 }
 
 

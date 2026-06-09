@@ -11,6 +11,7 @@ Load our package:
 
 ```{r}
 #| label: load-our-code
+#| eval: false
 
 source("R/sbc.R")
 source("R/geweke.R")
@@ -210,12 +211,12 @@ We need to define our test functions in a specific way. Like this:
 ```{r}
 test_fns <- make_test_functions(
   mu = function(theta, y) theta["mu"],
-  sigmasq = function(theta, y) theta["sigmasq"],
+  sigmasq = function(theta, y) theta["sigma2"],
   mu_sq = function(theta, y) theta["mu"]^2,
-  product = function(theta, y) theta["mu"] * theta["sigmasq"],
+  product = function(theta, y) theta["mu"] * theta["sigma2"],
   log_like = function(theta, y) sum(dnorm(y, 
                                           mean = theta["mu"], 
-                                          sd = sqrt(theta["sigmasq"]),
+                                          sd = sqrt(theta["sigma2"]),
                                           log = TRUE))
 )
 ```
@@ -223,7 +224,7 @@ test_fns <- make_test_functions(
 Recompute ranks using our new function:
 
 ```{r}
-ranks_test <- recompute_ranks(res, test_fns)
+ranks_test <- recompute_ranks(res, test_fns, n_thin = 10)
 ```
 
 We use the `.ranks_to_sbc_results` function as an intermediary: it formats our recomputed ranks `ranks_test` object into the shape expected by the SBC plot functions.
@@ -234,6 +235,7 @@ ranks_res <- ranks_to_sbc_results(ranks_test)
 
 Then we can call the SBC plot functions on the appropriately formatted `ranks_res` object:
 
+#Lance this is giving me an error but let's troubleshoot
 ```{r}
 SBC::plot_rank_hist(ranks_res)
 SBC::plot_ecdf_diff(ranks_res)

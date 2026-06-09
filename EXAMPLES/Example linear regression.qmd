@@ -3,13 +3,49 @@ title: "Example linear regression"
 format: html
 ---
 
+We have a linear regression model:
+$$
+y_i = x_i ^T \beta + \epsilon_i , \hspace{1cm} \epsilon_i \sim N(0, \sigma^2)
+$$ 
+Our unknown parameters are $\theta = \{\beta, \sigma^2\}$. (Keep in mind $\beta$ is a vector here and it follows a multivariate normal.)
+The prior is given by:
+
+$$
+\beta \sim N_p(\bar{\beta}_0, V_0)
+$$
+
+$$
+\sigma^2 \sim IG(a_0, b_0)
+$$ 
+With hyperparameters $\bar{\beta}_0, V_0, a_0, b_0$.
+
+As before, we use marginal conditionals to approximate the posterior via Gibbs sampling: 
+$$
+\{\beta | \sigma^2, y, X\} \sim N_p \left(\left(V_0 ^{-1}+\frac{X^TX}{\sigma^2}\right)^{-1} \left(V_0^{-1}\beta_0 + \frac{X^T y}{\sigma^2}\right) ,\left(V_0 ^{-1}+\frac{X^TX}{\sigma^2}\right)^{-1}\right)  \newline
+$$ 
+$$
+\{\sigma^2 | \beta, y, X\}\sim IG(a_0+\frac{n}{2}, \frac{1}{2}[\text{SSR}(\beta)]+b_0)
+$$
+This allows us to approximate the posterior for this model. Now onto implementing validation methods using our package.
+
 Load our package:
 
 ```{r}
-source("R/sbc.r")
+source("~/bayescheckr/R/sbc.R")
+source("~/bayescheckr/R/geweke.R")
+source("~/bayescheckr/R/testfunctions.R")
 ```
 
-Taken from `SBC on linear regression.qmd`, in `rzmautner`'s sandbox, hyperparameters were modified into a single object (a list) to match the generality of the package:
+A list of (exported) functions in the package is shown:
+
+```{r}
+ls(asNamespace("bayescheckr"))
+```
+
+
+Hyperparameters are packed into a single object (a list), because they have different dimensions, so this is a better approach than a named vector.
+
+Note that the constant design matrix X (predictor space data) is also included in this list. 
 
 ```{r}
 prior_hyper_params <- list(
@@ -21,7 +57,7 @@ prior_hyper_params <- list(
 )
 ```
 
-So our prior is:
+The prior is:
 
 ```{r}
 #| label: prior_sampler
@@ -45,27 +81,31 @@ prior_sampler <- function(prior_hyper_params){
 
 ^with minimal modifications to unpack a single `prior_hyper_params` object and to return a named vector instead of unnamed.
 
-Now the likelihood:
+Now the likelihood. Note, we must make a wrapper to include X (the data matrix) since our package requires that the likelihood sampler takes in only n / n_obs and theta as inputs.
 
 ```{r}
 #| label: likelihood_sampler
 
-likelihood_sampler <- function(n, theta){
+likelihood_sampler <- function(n_obs, theta, X){
   
   #note: We have to put X in prior_hyper_params and unpack it here.
   #This is because the contract in our package is that likelihood_sampler gets
   #only n and theta as inputs.
   
-  X <- prior_hyper_params$X
+  p <- ncol(X)
   
   p <- length(theta) - 1
   
   beta <- theta[1:p]
   sig2 <- theta[p+1]
   
-  y <- X %*% beta + rnorm(n, mean = 0, sd = sqrt(sig2))
+  y <- X %*% beta + rnorm(n_obs, mean = 0, sd = sqrt(sig2))
   
   return(y)
+}
+
+likelihood_sampler_wrapped <- function(n_obs, theta) {
+  likelihood_sampler(n_obs = n_obs, theta = theta, prior_hyper_params$X)
 }
 ```
 
@@ -118,3 +158,32 @@ posterior_sampler <- function(ndraws, y, prior_hyper_params){
   return(THETA)
 }
 ```
+
+## Running it
+
+### Geweke checks
+
+Let's set:
+
+```{r}
+n_obs <- 5
+n_draws <- 10000
+```
+
+The function `run_geweke` creates both direct and Gibbs draws from the joint.
+
+```{r}
+gibbs_results <- run_geweke(
+  prior_sampler = prior_sampler,
+  likelihood_sampler = likelihood_sampler_wrapped,
+  posterior_sampler = posterior_sampler,
+  n_obs = n_obs,
+  n_draws = n_draws,
+  n_burn = 1000,
+  n_thin = 5,
+  prior_hyper_params = prior_hyper_params,
+  parallelize = TRUE
+)
+```
+
+

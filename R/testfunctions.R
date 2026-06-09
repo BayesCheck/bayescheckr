@@ -30,7 +30,7 @@ make_test_functions <- function(...) {
 #' @export
 recompute_ranks <- function(result, test_fns,
                             parallelize = FALSE,
-                            thin_ranks = NULL) {
+                            n_thin = NULL) {
 
   n_sims <- length(result$sbc_result$fits)
   n_tests <- length(test_fns)
@@ -42,8 +42,8 @@ recompute_ranks <- function(result, test_fns,
 
   # thin if requested
   n_draws_total <- nrow(posterior::as_draws_matrix(result$sbc_result$fits[[1]]))
-  thin_idx <- if (is.null(thin_ranks)) seq_len(n_draws_total)
-              else seq(1, n_draws_total, by = thin_ranks)
+  thin_idx <- if (is.null(n_thin)) seq_len(n_draws_total)
+              else seq(1, n_draws_total, by = n_thin)
 
   ranks_list <- future.apply::future_lapply(
     seq_len(n_sims),

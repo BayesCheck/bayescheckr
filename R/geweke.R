@@ -172,7 +172,6 @@ geweke_mc_draws <- function(prior_sampler,
 }
 
 #' @export
-
 run_geweke <- function(prior_sampler,
                        likelihood_sampler,
                        posterior_sampler,
@@ -248,7 +247,6 @@ geweke_test <- function(g_mc,
 }
 
 #' @export
-
 apply_test_functions <- function(direct_draws, gibbs_draws, test_functions) {
 
   n_row <- nrow(direct_draws$theta) #same for Gibbs
@@ -280,6 +278,7 @@ apply_test_functions <- function(direct_draws, gibbs_draws, test_functions) {
   return(list(direct = direct_test_matrix, gibbs = gibbs_test_matrix))
 }
 
+#' @export
 tabulate_geweke_tests <- function(direct_draws,
                                   gibbs_draws,
                                   test_functions) {

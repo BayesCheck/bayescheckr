@@ -37,8 +37,7 @@ geweke_sc_draws <- function(prior_sampler,
                             n_draws = 1e4,
                             n_burn = 1000,
                             n_thin = 5,
-                            prior_hyper_params,
-                            debug = FALSE) {
+                            prior_hyper_params) {
 
   #set total loop iterations using burn-in and thinning inputs
   total_draws <- n_burn + (n_draws - 1) *n_thin
@@ -180,15 +179,19 @@ run_geweke <- function(prior_sampler,
                        n_burn = 1000,
                        n_thin = 5,
                        prior_hyper_params,
+                       test_fns = NULL,
                        parallelize = TRUE) {
 
   #0. Validate stuff:
   theta_test <- prior_sampler(prior_hyper_params)
-  if (!is.numeric(theta_test))
-    stop("prior_sampler must return a numeric vector.")
-  if (is.null(names(theta_test)) || any(names(theta_test) == ""))
-    stop("prior_sampler must return a named numeric vector. ",
-         "e.g. return(c(mu = mu, sigmasq = sigma2))")
+
+  if (is.null(test_fns)) {
+    if (!is.numeric(theta_test))
+      stop("prior_sampler must return a numeric vector.")
+    if (is.null(names(theta_test)) || any(names(theta_test) == ""))
+      stop("prior_sampler must return a named numeric vector. ",
+           "e.g. return(c(mu = mu, sigmasq = sigma2))")
+    }
 
   # new check for likelihood_sampler
   y_test <- likelihood_sampler(n_obs, theta_test)
@@ -196,7 +199,7 @@ run_geweke <- function(prior_sampler,
     stop("likelihood_sampler must return a numeric vector, matrix, or list.")
   if (is.vector(y_test) && !is.list(y_test)) {
     # coerce to matrix silently so downstream code always sees consistent format
-    warning("likelihood_sampler returned a plain vector — consider returning a matrix for generality.")
+    warning("likelihood_sampler returned a plain vector - consider returning a matrix for generality.")
   }
 
   direct_draws <- geweke_mc_draws(prior_sampler = prior_sampler,
@@ -213,10 +216,13 @@ run_geweke <- function(prior_sampler,
                                  n_draws = n_draws,
                                  n_burn = n_burn,
                                  n_thin = n_thin,
-                                 prior_hyper_params = prior_hyper_params,
-                                 debug)
-
-  return(list(direct_draws = direct_draws, gibbs_draws = gibbs_draws))
+                                 prior_hyper_params = prior_hyper_params)
+  if (!is.null(test_fns)) {
+    return(apply_test_functions(direct_draws = direct_draws,
+                         gibbs_draws = gibbs_draws,
+                         test_functions = test_fns))
+  }
+  return(list(direct = direct_draws, gibbs = gibbs_draws))
 }
 
 
@@ -279,9 +285,9 @@ apply_test_functions <- function(direct_draws, gibbs_draws, test_functions) {
 }
 
 #' @export
-tabulate_geweke_tests <- function(direct_draws,
-                                  gibbs_draws,
-                                  test_functions) {
+tabulate_geweke_tests <- function(draws,
+                                  test_functions,
+                                  tests_applied = FALSE) {
 
   #allocate storage for results: 2 stats x n tests - same as testfunctions.R
   stats <- c("statistic", "p_value")
@@ -291,9 +297,13 @@ tabulate_geweke_tests <- function(direct_draws,
                   "KS statistic", "KS p_value",
                   "Convergence statistic", "Convergence p_value")
 
-  test_matrix <- apply_test_functions(direct_draws,
-                                      gibbs_draws,
-                                      test_functions)
+  if (tests_applied) {
+    test_matrix <- draws
+  } else {
+    test_matrix <- apply_test_functions(draws$direct,
+                                        draws$gibbs,
+                                        test_functions)
+  }
 
   results_matrix <- matrix(NA, nrow = length(test_functions), ncol = 6,
                            dimnames =
@@ -355,14 +365,18 @@ tabulate_geweke_tests <- function(direct_draws,
 }
 
 #' @export
-plot_geweke_tests <- function(direct_draws,
-                              gibbs_draws,
+plot_geweke_tests <- function(draws,
                               test_functions,
+                              tests_applied = FALSE,
                               probs = seq(0.05, 0.95, by = 0.05)) {
 
-  test_matrix <- apply_test_functions(direct_draws,
-                                      gibbs_draws,
-                                      test_functions)
+  if (tests_applied) {
+    test_matrix <- draws
+  } else {
+    test_matrix <- apply_test_functions(draws$direct,
+                                        draws$gibbs,
+                                        test_functions)
+  }
 
   #probs <- seq(0.05, 0.95, by = 0.05)
   n_fns <- length(test_functions)

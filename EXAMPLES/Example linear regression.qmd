@@ -236,14 +236,14 @@ test_fns <- make_test_functions(
 ### Geweke on test functions
 
 ```{r}
-tabulate_geweke_tests(direct_draws = gibbs_results$direct_draws,
-                 gibbs_draws = gibbs_results$gibbs_draws,
-                 test_functions = test_fns)
+tabulate_geweke_tests(draws = gibbs_results,
+                      tests_applied = FALSE,
+                      test_functions = test_fns)
 ```
 
 ```{r}
-plot_geweke_tests(direct_draws = gibbs_results$direct_draws,
-                 gibbs_draws = gibbs_results$gibbs_draws,
+plot_geweke_tests(direct_draws = gibbs_results$direct,
+                 gibbs_draws = gibbs_results$gibbs,
                  test_functions = test_fns)
 ```
 ### SBC on test functions

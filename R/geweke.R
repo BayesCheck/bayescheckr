@@ -74,7 +74,7 @@ geweke_sc_draws <- function(prior_sampler,
   for (m in 1:total_draws) {
     #simulate from the posterior
 
-    theta <- posterior_sampler(ndraws = 1,
+    theta <- posterior_sampler(n_draws = 1,
                                y = y,
                                prior_hyper_params = prior_hyper_params,
                                init = theta)

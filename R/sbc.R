@@ -37,7 +37,8 @@ run_sbc <- function(prior_sampler,
                     n_draws = 1e4,
                     prior_hyper_params,
                     test_fns = NULL,          # <-- NEW argument
-                    parallelize = FALSE) {
+                    parallelize = FALSE,
+                    globals = NULL) {
 
   theta_test <- prior_sampler(prior_hyper_params)
 
@@ -107,13 +108,18 @@ run_sbc <- function(prior_sampler,
   if (parallelize == TRUE) {
     future::plan(future::multisession)
     on.exit(future::plan(future::sequential))
-    if (is.null(test_fns)) {
+
+    # merge package-internal globals with user-supplied ones:
+
+    internal_globals <- if (is.null(test_fns)) {
       globals <- c("posterior_sampler", "n_draws",
                    "prior_hyper_params", "param_names")
     } else {
       globals <- c("posterior_sampler", "n_draws",
                    "prior_hyper_params", "test_fns")
     }
+    all_globals <- union(internal_globals, globals)  # <-- merge
+
     res <- SBC::compute_SBC(dataset, backend, globals = globals)
   } else {
     res <- SBC::compute_SBC(dataset, backend)

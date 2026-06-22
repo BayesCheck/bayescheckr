@@ -107,8 +107,13 @@ run_sbc <- function(prior_sampler,
   if (parallelize == TRUE) {
     future::plan(future::multisession)
     on.exit(future::plan(future::sequential))
-    globals <- c("posterior_sampler", "n_draws",
-                 "prior_hyper_params", "param_names")
+    if (is.null(test_fns)) {
+      globals <- c("posterior_sampler", "n_draws",
+                   "prior_hyper_params", "param_names")
+    } else {
+      globals <- c("posterior_sampler", "n_draws",
+                   "prior_hyper_params", "test_fns")
+    }
     res <- SBC::compute_SBC(dataset, backend, globals = globals)
   } else {
     res <- SBC::compute_SBC(dataset, backend)

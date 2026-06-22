@@ -12,6 +12,21 @@
   }
 }
 
+.make_generator_single_testfns <- function(prior_sampler, likelihood_sampler,
+                                           n_obs, prior_hyper_params, test_fns) {
+  function() {
+    theta <- prior_sampler(prior_hyper_params)
+    y     <- likelihood_sampler(n_obs, theta)
+    # variables: apply each test function to the prior draw
+    # this is what SBC will rank the posterior values against
+    vars <- lapply(test_fns, function(f) f(theta, y))
+    list(
+      variables = vars,
+      generated = list(y = y, n = n_obs)
+    )
+  }
+}
+
 # The main entry point.
 #' @export
 run_sbc <- function(prior_sampler,
@@ -21,50 +36,74 @@ run_sbc <- function(prior_sampler,
                     n_obs,
                     n_draws = 1e4,
                     prior_hyper_params,
-                    parallelize = FALSE){
+                    test_fns = NULL,          # <-- NEW argument
+                    parallelize = FALSE) {
 
-
-  #0. Validate stuff:
   theta_test <- prior_sampler(prior_hyper_params)
-  if (!is.numeric(theta_test))
-    stop("prior_sampler must return a numeric vector.")
-  if (is.null(names(theta_test)) || any(names(theta_test) == ""))
-    stop("prior_sampler must return a named numeric vector. ",
-         "e.g. return(c(mu = mu, sigmasq = sigma2))")
 
-  # new check for likelihood_sampler
+  # --- CHANGED: validation branches on whether test_fns is provided ---
+  if (is.null(test_fns)) {
+    # original path: theta must be a named numeric vector
+    if (!is.numeric(theta_test))
+      stop("prior_sampler must return a numeric vector.")
+    if (is.null(names(theta_test)) || any(names(theta_test) == ""))
+      stop("prior_sampler must return a named numeric vector.")
+    param_names <- names(theta_test)
+  }
+  # if test_fns is provided, we don't validate theta structure at all —
+  # it can be a list, vector, anything. test_fns defines the comparison.
+
   y_test <- likelihood_sampler(n_obs, theta_test)
   if (!is.numeric(y_test) && !is.matrix(y_test) && !is.list(y_test))
     stop("likelihood_sampler must return a numeric vector, matrix, or list.")
-  if (is.vector(y_test) && !is.list(y_test)) {
-    # coerce to matrix silently so downstream code always sees consistent format
-    warning("likelihood_sampler returned a plain vector — consider returning a matrix for generality.")
+
+  # --- CHANGED: generator handles both cases ---
+  if (is.null(test_fns)) {
+    generator <- SBC::SBC_generator_function(
+      .make_generator_single(prior_sampler, likelihood_sampler, n_obs,
+                             prior_hyper_params)
+    )
+  } else {
+    generator <- SBC::SBC_generator_function(
+      .make_generator_single_testfns(prior_sampler, likelihood_sampler, n_obs,
+                                     prior_hyper_params, test_fns)
+    )
   }
 
-  #1. Get param names from one trial draw of the prior
-  param_names <- names(theta_test)
-
-  #2. Build the generator and dataset
-  generator <- SBC::SBC_generator_function(
-    .make_generator_single(prior_sampler, likelihood_sampler, n_obs,
-                           prior_hyper_params)
-  )
   dataset <- SBC::generate_datasets(generator, n_sims)
 
-  #3. Change backend to evade S3 dispatch
-  backend <- SBC::SBC_backend_function(
-    func = function(generated) {
-      res_raw <- posterior_sampler(
-        ndraws             = n_draws,
-        y                  = generated$y,
-        prior_hyper_params = prior_hyper_params
-      )
-      colnames(res_raw) <- param_names
-      posterior::as_draws_matrix(res_raw)
-    }
-  )
+  # --- CHANGED: backend branches on test_fns ---
+  if (is.null(test_fns)) {
+    # original path
+    backend <- SBC::SBC_backend_function(
+      func = function(generated) {
+        res_raw <- posterior_sampler(
+          ndraws             = n_draws,
+          y                  = generated$y,
+          prior_hyper_params = prior_hyper_params
+        )
+        colnames(res_raw) <- param_names
+        posterior::as_draws_matrix(res_raw)
+      }
+    )
+  } else {
+    # new path: posterior returns list of theta-lists, apply test_fns
+    backend <- SBC::SBC_backend_function(
+      func = function(generated) {
+        draws_list <- posterior_sampler(
+          ndraws             = n_draws,
+          y                  = generated$y,
+          prior_hyper_params = prior_hyper_params
+        )
+        # draws_list: list of length n_draws, each element is a theta-list
+        result <- t(sapply(draws_list, function(th)
+          sapply(test_fns, function(f) f(th, generated$y))))
+        colnames(result) <- names(test_fns)
+        posterior::as_draws_matrix(result)
+      }
+    )
+  }
 
-  #4. Run SBC, maybe use parallelization
   if (parallelize == TRUE) {
     future::plan(future::multisession)
     on.exit(future::plan(future::sequential))
@@ -76,10 +115,8 @@ run_sbc <- function(prior_sampler,
   }
 
   structure(
-    list(
-      sbc_result = res,      # the SBC_results object
-      dataset    = dataset   # the SBC_datasets object
-    ),
+    list(sbc_result = res,
+         dataset    = dataset),
     class = "bayescheckr_sbc"
   )
 }

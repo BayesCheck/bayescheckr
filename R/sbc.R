@@ -120,7 +120,7 @@ run_sbc <- function(prior_sampler,
     }
     all_globals <- union(internal_globals, globals)  # <-- merge
 
-    res <- SBC::compute_SBC(dataset, backend, globals = globals)
+    res <- SBC::compute_SBC(dataset, backend, globals = all_globals)
   } else {
     res <- SBC::compute_SBC(dataset, backend)
   }

@@ -112,13 +112,12 @@ run_sbc <- function(prior_sampler,
     # merge package-internal globals with user-supplied ones:
 
     internal_globals <- if (is.null(test_fns)) {
-      globals <- c("posterior_sampler", "n_draws",
-                   "prior_hyper_params", "param_names")
+      c("posterior_sampler", "n_draws", "prior_hyper_params", "param_names")
     } else {
-      globals <- c("posterior_sampler", "n_draws",
-                   "prior_hyper_params", "test_fns")
+      c("posterior_sampler", "n_draws", "prior_hyper_params", "test_fns")
     }
-    all_globals <- union(internal_globals, globals)  # <-- merge
+
+    all_globals <- union(internal_globals, globals)
 
     res <- SBC::compute_SBC(dataset, backend, globals = all_globals)
   } else {

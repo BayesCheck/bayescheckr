@@ -81,7 +81,7 @@ run_sbc <- function(prior_sampler,
     backend <- SBC::SBC_backend_function(
       func = function(generated) {
         res_raw <- posterior_sampler(
-          ndraws             = n_draws,
+          n_draws             = n_draws,
           y                  = generated$y,
           prior_hyper_params = prior_hyper_params
         )
@@ -96,7 +96,7 @@ run_sbc <- function(prior_sampler,
     backend <- SBC::SBC_backend_function(
       func = function(generated) {
         draws_list <- posterior_sampler(
-          ndraws             = n_draws,
+          n_draws             = n_draws,
           y                  = generated$y,
           prior_hyper_params = prior_hyper_params
         )

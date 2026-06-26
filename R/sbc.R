@@ -36,7 +36,7 @@ run_sbc <- function(prior_sampler,
                     n_obs,
                     n_draws = 1e4,
                     n_burnin = 0,
-                    n_thin = 10,
+                    n_thin = 0,
                     prior_hyper_params,
                     test_fns = NULL,          # <-- NEW argument
                     parallelize = FALSE,

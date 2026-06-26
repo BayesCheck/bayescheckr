@@ -35,8 +35,6 @@ run_sbc <- function(prior_sampler,
                     n_sims,
                     n_obs,
                     n_draws = 1e4,
-                    n_burnin = 0,
-                    n_thin = 0,
                     prior_hyper_params,
                     test_fns = NULL,          # <-- NEW argument
                     parallelize = FALSE,
@@ -85,8 +83,6 @@ run_sbc <- function(prior_sampler,
           y                  = generated$y,
           prior_hyper_params = prior_hyper_params
         )
-        thin_idx <- seq(n_burnin + 1, n_draws, by = n_thin)
-        res_raw  <- res_raw[thin_idx, ]
         colnames(res_raw) <- param_names
         posterior::as_draws_matrix(res_raw)
       }
@@ -116,9 +112,9 @@ run_sbc <- function(prior_sampler,
     # merge package-internal globals with user-supplied ones:
 
     internal_globals <- if (is.null(test_fns)) {
-      c("posterior_sampler", "n_draws", "prior_hyper_params", "param_names", "n_burnin", "n_thin")
+      c("posterior_sampler", "n_draws", "prior_hyper_params", "param_names")
     } else {
-      c("posterior_sampler", "n_draws", "prior_hyper_params", "test_fns", "n_burnin", "n_thin")
+      c("posterior_sampler", "n_draws", "prior_hyper_params", "test_fns")
     }
 
     all_globals <- union(internal_globals, globals)

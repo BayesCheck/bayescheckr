@@ -4,12 +4,19 @@
 \alias{keep_draw}
 \title{the following two functions create the successive-conditional and
 marginal-conditional sampling needed for comparison per John Geweke's 2004
-JASA paper about "Getting it right."}
+JASA paper about "Getting it right."
+#' @export
+as_theta <- function(x) {
+x <- as.list(x)
+class(x) <- c("bcheck_theta", class(x))
+x
+}}
 \usage{
 keep_draw(draw_num, n_burn, n_thin)
 }
 \description{
-the following two functions create the successive-conditional and
-marginal-conditional sampling needed for comparison per John Geweke's 2004
-JASA paper about "Getting it right."
+\verb{[.bcheck_theta} <- function(x, i) {
+res <- unclass(x)\link{i}
+if (length(i) == 1) res[\link{1}] else res
+}
 }

@@ -37,7 +37,8 @@ run_sbc <- function(prior_sampler,
                     n_draws = 1e4,
                     prior_hyper_params,
                     test_fns = NULL,          # <-- NEW argument
-                    parallelize = FALSE) {
+                    parallelize = FALSE,
+                    globals = NULL) {
 
   theta_test <- prior_sampler(prior_hyper_params)
 
@@ -78,7 +79,7 @@ run_sbc <- function(prior_sampler,
     backend <- SBC::SBC_backend_function(
       func = function(generated) {
         res_raw <- posterior_sampler(
-          ndraws             = n_draws,
+          n_draws             = n_draws,
           y                  = generated$y,
           prior_hyper_params = prior_hyper_params
         )
@@ -91,7 +92,7 @@ run_sbc <- function(prior_sampler,
     backend <- SBC::SBC_backend_function(
       func = function(generated) {
         draws_list <- posterior_sampler(
-          ndraws             = n_draws,
+          n_draws             = n_draws,
           y                  = generated$y,
           prior_hyper_params = prior_hyper_params
         )
@@ -107,14 +108,18 @@ run_sbc <- function(prior_sampler,
   if (parallelize == TRUE) {
     future::plan(future::multisession)
     on.exit(future::plan(future::sequential))
-    if (is.null(test_fns)) {
-      globals <- c("posterior_sampler", "n_draws",
-                   "prior_hyper_params", "param_names")
+
+    # merge package-internal globals with user-supplied ones:
+
+    internal_globals <- if (is.null(test_fns)) {
+      c("posterior_sampler", "n_draws", "prior_hyper_params", "param_names")
     } else {
-      globals <- c("posterior_sampler", "n_draws",
-                   "prior_hyper_params", "test_fns")
+      c("posterior_sampler", "n_draws", "prior_hyper_params", "test_fns")
     }
-    res <- SBC::compute_SBC(dataset, backend, globals = globals)
+
+    all_globals <- union(internal_globals, globals)
+
+    res <- SBC::compute_SBC(dataset, backend, globals = all_globals)
   } else {
     res <- SBC::compute_SBC(dataset, backend)
   }

@@ -13,6 +13,21 @@
 #' marginal-conditional sampling needed for comparison per John Geweke's 2004
 #' JASA paper about "Getting it right."
 
+#First, we make sure theta is constructed in a way that makes it robust to different access methods
+
+#' #' @export
+#' as_theta <- function(x) {
+#'   x <- as.list(x)
+#'   class(x) <- c("bcheck_theta", class(x))
+#'   x
+#' }
+#'
+#' `[.bcheck_theta` <- function(x, i) {
+#'   res <- unclass(x)[i]
+#'   if (length(i) == 1) res[[1]] else res
+#' }
+
+
 #successive conditional: sc
 
 #helper function to determine whether to keep a draw
@@ -74,7 +89,7 @@ geweke_sc_draws <- function(prior_sampler,
   for (m in 1:total_draws) {
     #simulate from the posterior
 
-    theta <- posterior_sampler(ndraws = 1,
+    theta <- posterior_sampler(n_draws = 1,
                                y = y,
                                prior_hyper_params = prior_hyper_params,
                                init = theta)

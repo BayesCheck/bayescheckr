@@ -73,64 +73,145 @@
 # ------------------------------------------------------------------------------
 
 
-.run_influential <- function(theta_A, theta_B, varnames) {
+.run_influential <- function(theta_A,
+                             theta_B,
+                             varnames,
+                             train_frac = 0.8,
+                             nrounds = 100){
 
-  # combine both populations with a label column; keep feature cols only
-  df <- rbind(
-    cbind(as.data.frame(theta_A), .label = "A"),
-    cbind(as.data.frame(theta_B), .label = "B")
+  ##-----------------------
+  ## Split A
+  ##-----------------------
+
+  idx_A <- sample(seq_len(nrow(theta_A)),
+                  floor(train_frac*nrow(theta_A)))
+
+  A_train <- theta_A[idx_A,,drop=FALSE]
+  A_test  <- theta_A[-idx_A,,drop=FALSE]
+
+  ##-----------------------
+  ## Split B
+  ##-----------------------
+
+  idx_B <- sample(seq_len(nrow(theta_B)),
+                  floor(train_frac*nrow(theta_B)))
+
+  B_train <- theta_B[idx_B,,drop=FALSE]
+  B_test  <- theta_B[-idx_B,,drop=FALSE]
+
+
+
+  ############################################################
+  ## Train A vs B
+  ############################################################
+
+  Xtrain <- rbind(A_train,B_train)
+  ytrain <- c(rep(0,nrow(A_train)),
+              rep(1,nrow(B_train)))
+
+  dtrain <- xgboost::xgb.DMatrix(
+    as.matrix(Xtrain),
+    label=ytrain
   )
-  df$.label <- factor(df$.label)
 
-  # train radial-kernel SVM to separate the two populations
-  fit <- e1071::svm(
-    .label ~ .,
-    data        = df,
-    kernel      = "radial",
-    probability = TRUE,
-    cost        = 1,
-    gamma       = 1 / length(varnames)
+  fit_AB <- xgboost::xgb.train(
+    params=list(
+      objective="binary:logistic",
+      eval_metric="logloss",
+      max_depth=4,
+      eta=.1,
+      subsample=.8,
+      colsample_bytree=.8
+    ),
+    data=dtrain,
+    nrounds=nrounds,
+    verbose=0
   )
 
-  # per-sample predicted probabilities of belonging to B
-  probs        <- attr(predict(fit, df, probability = TRUE), "probabilities")
-  df$p_B       <- probs[, "B"]
-  df$influence <- abs(df$p_B - 0.5)   # 0 = on boundary, 0.5 = certain
 
-  baseline_acc <- mean(predict(fit, df) == df$.label)
 
-  # permutation importance: drop in accuracy when one variable is shuffled
-  importance <- sapply(varnames, function(var) {
-    df_perm        <- df
-    df_perm[[var]] <- sample(df_perm[[var]])
-    perm_acc       <- mean(predict(fit, df_perm) == df_perm$.label)
-    baseline_acc - perm_acc
-  })
+  ############################################################
+  ## Test
+  ############################################################
 
-  importance_df <- data.frame(
-    variable   = names(importance),
-    importance = as.numeric(importance),
-    stringsAsFactors = FALSE
+  Xtest <- rbind(A_test,B_test)
+  ytest <- c(rep(0,nrow(A_test)),
+             rep(1,nrow(B_test)))
+
+  p <- predict(
+    fit_AB,
+    xgboost::xgb.DMatrix(as.matrix(Xtest))
   )
-  importance_df <- importance_df[order(-importance_df$importance), ]
-  rownames(importance_df) <- NULL
 
-  # top-5 most boundary-adjacent examples from each population
-  rows_A <- df[df$.label == "A", ]
-  top_A  <- rows_A[order(rows_A$influence), ][seq_len(min(5, nrow(rows_A))),
-                                              c(varnames, "p_B", "influence")]
-  rownames(top_A) <- NULL
+  pred <- ifelse(p>.5,1,0)
 
-  rows_B <- df[df$.label == "B", ]
-  top_B  <- rows_B[order(rows_B$influence), ][seq_len(min(5, nrow(rows_B))),
-                                              c(varnames, "p_B", "influence")]
-  rownames(top_B) <- NULL
+  accuracy <- mean(pred==ytest)
+
+
+
+  ############################################################
+  ## Importance
+  ############################################################
+
+  importance_AB <-
+    xgboost::xgb.importance(
+      feature_names=varnames,
+      model=fit_AB
+    )
+  importance_AB <- importance_AB[, c("Feature", "Gain")]
+
+  colnames(importance_AB) <- c(
+    "variable",
+    "importance"
+  )
+
+
+  ############################################################
+  ## Reverse labels
+  ############################################################
+
+  ytrain_rev <- 1-ytrain
+
+  fit_BA <- xgboost::xgb.train(
+    params=list(
+      objective="binary:logistic",
+      eval_metric="logloss",
+      max_depth=4,
+      eta=.1,
+      subsample=.8,
+      colsample_bytree=.8
+    ),
+    data=xgboost::xgb.DMatrix(
+      as.matrix(Xtrain),
+      label=ytrain_rev
+    ),
+    nrounds=nrounds,
+    verbose=0
+  )
+
+  importance_BA <-
+    xgboost::xgb.importance(
+      feature_names=varnames,
+      model=fit_BA
+    )
+  importance_BA <- importance_BA[, c("Feature", "Gain")]
+
+  colnames(importance_BA) <- c(
+    "variable",
+    "importance"
+  )
+
 
   list(
-    classifier_accuracy = baseline_acc,
-    importance          = importance_df,
-    boundary_examples_A = top_A,
-    boundary_examples_B = top_B
+
+    classifier_accuracy = accuracy,
+
+    importance = importance_AB,
+
+    importance_A_to_B = importance_AB,
+
+    importance_B_to_A = importance_BA
+
   )
 }
 
@@ -202,10 +283,14 @@
 # ------------------------------------------------------------------------------
 
 #' @export
-run_distributional_shift <- function(direct_draws,
-                                     gibbs_draws,
-                                     k_prototypes = 4L,
-                                     radius       = NULL) {
+run_distributional_shift <- function(
+    direct_draws,
+    gibbs_draws,
+    train_frac = 0.8,
+    nrounds = 100,
+    k_prototypes = 4L,
+    radius = NULL
+) {
 
   theta_A  <- direct_draws$theta
   theta_B  <- gibbs_draws$theta
@@ -222,7 +307,13 @@ run_distributional_shift <- function(direct_draws,
   k <- min(k_prototypes, nrow(theta_A) - 1L)
 
   message("Method 1: training A-vs-B classifier ...")
-  m1 <- .run_influential(theta_A, theta_B, varnames)
+  m1 <- .run_influential(
+    theta_A,
+    theta_B,
+    varnames,
+    train_frac = train_frac,
+    nrounds = nrounds
+  )
 
   message("Method 2: computing prototype neighbourhoods ...")
   m2 <- .run_prototypes(theta_A, theta_B, varnames, k = k, radius = radius)
@@ -230,7 +321,12 @@ run_distributional_shift <- function(direct_draws,
   message("Method 3: computing divergence metrics ...")
   m3 <- .run_divergences(theta_A, theta_B, varnames)
 
-  synthesis <- merge(m1$importance, m3, by = "variable", all.x = TRUE)
+  synthesis <- merge(
+    m1$importance_A_to_B,
+    m3,
+    by = "variable",
+    all.x = TRUE
+  )
   synthesis <- synthesis[order(-synthesis$importance), ]
   rownames(synthesis) <- NULL
 
@@ -265,7 +361,7 @@ plot_shift_importance <- function(shift_result,
                                   label_A = "Direct (MC)",
                                   label_B = "Gibbs (SC)") {
 
-  imp <- shift_result$influential$importance
+  imp <- shift_result$influential$importance_A_to_B
   acc <- shift_result$influential$classifier_accuracy
 
   # coerce importance > 0 to character so scale_fill_manual keys are unambiguous

@@ -22,8 +22,7 @@ devtools::load_all(".")
 
 ## Quick start
 
-The three things you always need to provide are a **prior sampler**, a **likelihood sampler**, and a **posterior sampler**. 
-You might also want to set some prior hyperparameters. `bayescheckr` does the rest.
+The three things you always need to provide are a **prior sampler**, a **likelihood sampler**, and a **posterior sampler**. You might also want to set some prior hyperparameters. `bayescheckr` does the rest.
 
 ``` r
 library(bayescheckr)
@@ -137,7 +136,7 @@ print(results)
 ```
 
 | Row | What it tests |
-|------------------------------------|------------------------------------|
+|----|----|
 | `Geweke statistic / p_value` | Difference-in-means z-test (Geweke 2004) using long-run variance for the Gibbs arm |
 | `KS statistic / p_value` | Kolmogorov–Smirnov two-sample test |
 | `Convergence statistic / p_value` | `coda::geweke.diag` on the Gibbs chain — checks internal chain convergence |
@@ -151,7 +150,7 @@ Large p-values (\> 0.05) across all three indicate no evidence of miscalibration
 ### SBC
 
 | Function | Description |
-|------------------------------------|------------------------------------|
+|----|----|
 | `run_sbc()` | Main entry point. Runs SBC and returns a `bayescheckr_sbc` object |
 | `recompute_ranks()` | Recomputes ranks using user-supplied test functions |
 | `rank_mean_test()` | Tests whether the rank mean equals the expected value `L/2` |
@@ -162,7 +161,7 @@ Large p-values (\> 0.05) across all three indicate no evidence of miscalibration
 ### Geweke
 
 | Function | Description |
-|------------------------------------|------------------------------------|
+|----|----|
 | `geweke_mc_draws()` | Generates direct (marginal-conditional) draws |
 | `geweke_sc_draws()` | Runs the successive-conditional (Gibbs) chain |
 | `tabulate_geweke_tests()` | Returns dataframe with Geweke z-test, KS test, and convergence diagnostics in one call |
@@ -171,7 +170,7 @@ Large p-values (\> 0.05) across all three indicate no evidence of miscalibration
 ### Shared
 
 | Function | Description |
-|------------------------------------|------------------------------------|
+|----|----|
 | `make_test_functions()` | Validates and packages user-supplied test functions |
 
 ------------------------------------------------------------------------
@@ -200,3 +199,9 @@ Test functions must take exactly `(theta, y)` and return a scalar:
 # y:     numeric vector of observations
 my_test <- function(theta, y) { ... }  # must return a single number
 ```
+
+------------------------------------------------------------------------
+
+## Variable-dimension samplers (RJMCMC)
+
+`run_distributional_shift()` requires each posterior draw to have a fixed-dimensional representation. For RJMCMC output, users should embed each draw into the maximum model dimension, padding inactive parameters with NA (or another consistent placeholder) and optionally including indicator variables for parameter activity and the model dimension k

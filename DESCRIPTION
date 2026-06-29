@@ -22,7 +22,7 @@ Imports:
     stats,
     coda,
     mvtnorm,
-    e1071, 
+    xgboost, 
     cluster,
     patchwork
 Remotes:

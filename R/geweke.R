@@ -15,17 +15,19 @@
 
 #First, we make sure theta is constructed in a way that makes it robust to different access methods
 
-#' #' @export
-#' as_theta <- function(x) {
-#'   x <- as.list(x)
-#'   class(x) <- c("bcheck_theta", class(x))
-#'   x
-#' }
-#'
-#' `[.bcheck_theta` <- function(x, i) {
-#'   res <- unclass(x)[i]
-#'   if (length(i) == 1) res[[1]] else res
-#' }
+#' @export
+as_theta <- function(x) {
+  if (is.list(x)) {
+    return(x) #lists already support $ and [[ — nothing to do
+  }
+  class(x) <- c("bcheck_theta", class(x))
+  x
+}
+
+#' @export
+`$.bcheck_theta` <- function(x, name) {
+  unclass(x)[[name]]
+}
 
 
 #successive conditional: sc
@@ -97,7 +99,7 @@ geweke_sc_draws <- function(prior_sampler,
     theta <- theta[1, ]
 
     #simulate data given the latest parameter values
-    y <- likelihood_sampler(n_obs, theta)
+    y <- likelihood_sampler(n_obs, as_theta(theta))
 
     if (keep_draw(m, n_burn, n_thin)) { #decide whether to save the draw
 
@@ -285,13 +287,13 @@ apply_test_functions <- function(direct_draws, gibbs_draws, test_functions) {
 
     direct_test_matrix[, nm] <- as.numeric(sapply(
       seq_len(n_row), function(i) {
-        fn(direct_draws$theta[i, ], as.numeric(direct_draws$y[i, ]))
+        fn(as_theta(direct_draws$theta[i, ]), as.numeric(direct_draws$y[i, ]))
       }
     ))
 
     gibbs_test_matrix[, nm] <- as.numeric(sapply(
       seq_len(n_row), function(i) {
-        fn(gibbs_draws$theta[i, ], as.numeric(gibbs_draws$y[i, ]))
+        fn(as_theta(gibbs_draws$theta[i, ]), as.numeric(gibbs_draws$y[i, ]))
       }
     ))
   }

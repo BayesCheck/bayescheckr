@@ -131,6 +131,44 @@ run_sbc <- function(prior_sampler,
   )
 }
 
+#' @export
+run_sbc_prebaked <- function(
+    model, #options: "iidnorm", "linreg", "doucet", "primiceri"
+    n_sims,
+    n_obs,
+    n_draws            = 1e4,
+    prior_hyper_params = NULL,
+    test_fns           = NULL,
+    parallelize        = FALSE,
+    globals            = NULL
+) {
+  registry <- .make_sampler_registry()
+
+  if (!model %in% names(registry$prior))
+    stop("Unknown model: '", model, "'. Available models: ",
+         paste(names(registry$prior), collapse = ", "))
+
+  prior_sampler      <- registry$prior[[model]]
+  likelihood_sampler <- registry$likelihood[[model]]
+  posterior_sampler  <- registry$posterior[[model]]
+
+  if (is.null(prior_hyper_params))
+    prior_hyper_params <- registry$default_hyper[[model]]
+
+  run_sbc(
+    prior_sampler      = prior_sampler,
+    likelihood_sampler = likelihood_sampler,
+    posterior_sampler  = posterior_sampler,
+    n_sims             = n_sims,
+    n_obs              = n_obs,
+    n_draws            = n_draws,
+    prior_hyper_params = prior_hyper_params,
+    test_fns           = test_fns,
+    parallelize        = parallelize,
+    globals            = globals
+  )
+}
+
 # Convert a bayescheckr_ranks object to an SBC_results object for plotting
 #' @export
 ranks_to_sbc_results <- function(ranked) {

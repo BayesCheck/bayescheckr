@@ -242,6 +242,43 @@ run_geweke <- function(prior_sampler,
   return(list(direct = direct_draws, gibbs = gibbs_draws))
 }
 
+#' @export
+run_geweke_prebaked <- function(
+    model, #string options: "iidnorm", "linreg", "doucet", "primiceri"
+    n_obs,
+    n_draws            = 1e4,
+    n_burn             = 1000,
+    n_thin             = 5,
+    prior_hyper_params = NULL,
+    test_fns           = NULL,
+    parallelize        = TRUE
+) {
+  registry <- .make_sampler_registry()
+
+  if (!model %in% names(registry$prior))
+    stop("Unknown model: '", model, "'. Available models: ",
+         paste(names(registry$prior), collapse = ", "))
+
+  prior_sampler      <- registry$prior[[model]]
+  likelihood_sampler <- registry$likelihood[[model]]
+  posterior_sampler  <- registry$posterior[[model]]
+
+  if (is.null(prior_hyper_params))
+    prior_hyper_params <- registry$default_hyper[[model]]
+
+  run_geweke(
+    prior_sampler      = prior_sampler,
+    likelihood_sampler = likelihood_sampler,
+    posterior_sampler  = posterior_sampler,
+    n_obs              = n_obs,
+    n_draws            = n_draws,
+    n_burn             = n_burn,
+    n_thin             = n_thin,
+    prior_hyper_params = prior_hyper_params,
+    test_fns           = test_fns,
+    parallelize        = parallelize
+  )
+}
 
 #' Now moving to test functions: difference in means testing (per Geweke 2004)
 #' and KS testing, for z-score comparison, among other tests

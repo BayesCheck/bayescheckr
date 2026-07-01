@@ -10,7 +10,6 @@
 # ----------------
 #   run_distributional_shift()     main entry point; returns a named list
 #   tabulate_shift_divergences()   Method 2 — numeric divergence table
-#   plot_shift_importance()        Method 1 — permutation importance bar chart
 #   plot_shift_densities()         Method 2 — marginal density overlays
 #
 # Dependencies: e1071, ggplot2, tidyr, patchwork
@@ -158,84 +157,21 @@
   c2st_pvalue  <- stats::pnorm(c2st_z, lower.tail = FALSE)
 
   c2st <- list(
-    statistic = accuracy,   # t_hat, in "fraction correctly classified" units
+    statistic = accuracy,
     n_test    = n_te,
     se_null   = c2st_se,
     z         = c2st_z,
     p_value   = c2st_pvalue
   )
 
-
-
-  ############################################################
-  ## Importance
-  ############################################################
-
-  importance_AB <-
-    xgboost::xgb.importance(
-      feature_names=varnames,
-      model=fit_AB
-    )
-  importance_AB <- importance_AB[, c("Feature", "Gain")]
-
-  colnames(importance_AB) <- c(
-    "variable",
-    "importance"
-  )
-
-
-  ############################################################
-  ## Reverse labels
-  ############################################################
-
-  ytrain_rev <- 1-ytrain
-
-  fit_BA <- xgboost::xgb.train(
-    params=list(
-      objective="binary:logistic",
-      eval_metric="logloss",
-      max_depth=4,
-      eta=.1,
-      subsample=.8,
-      colsample_bytree=.8
-    ),
-    data=xgboost::xgb.DMatrix(
-      as.matrix(Xtrain),
-      label=ytrain_rev
-    ),
-    nrounds=nrounds,
-    verbose=0
-  )
-
-  importance_BA <-
-    xgboost::xgb.importance(
-      feature_names=varnames,
-      model=fit_BA
-    )
-  importance_BA <- importance_BA[, c("Feature", "Gain")]
-
-  colnames(importance_BA) <- c(
-    "variable",
-    "importance"
-  )
-
-
   list(
 
     classifier_accuracy = accuracy,
 
-    c2st = c2st,
-
-    importance = importance_AB,
-
-    importance_A_to_B = importance_AB,
-
-    importance_B_to_A = importance_BA
+    c2st = c2st
 
   )
 }
-
-
 # ------------------------------------------------------------------------------
 # Method 2 — divergence metrics
 # ------------------------------------------------------------------------------
@@ -246,7 +182,8 @@
   rows <- lapply(varnames, function(var) {
     x      <- theta_A[, var]
     y      <- theta_B[, var]
-    ks_res <- ks.test(x, y)   # call once; reuse both statistic and p.value
+    ks_res <- ks.test(x, y)
+
     data.frame(
       variable      = var,
       KL_A_to_B     = .kl_kde(x, y),
@@ -283,6 +220,7 @@ run_distributional_shift <- function(
   }
 
   message("Method 1: training A-vs-B classifier ...")
+
   m1 <- .run_influential(
     theta_A,
     theta_B,
@@ -292,21 +230,16 @@ run_distributional_shift <- function(
   )
 
   message("Method 2: computing divergence metrics ...")
-  m2 <- .run_divergences(theta_A, theta_B, varnames)
 
-  synthesis <- merge(
-    m1$importance_A_to_B,
-    m2,
-    by = "variable",
-    all.x = TRUE
+  m2 <- .run_divergences(
+    theta_A,
+    theta_B,
+    varnames
   )
-  synthesis <- synthesis[order(-synthesis$importance), ]
-  rownames(synthesis) <- NULL
 
   list(
     influential = m1,
     divergences = m2,
-    synthesis   = synthesis,
     varnames    = varnames,
     n_A         = nrow(theta_A),
     n_B         = nrow(theta_B)
@@ -322,44 +255,14 @@ run_distributional_shift <- function(
 tabulate_shift_divergences <- function(shift_result) {
   shift_result$divergences
 }
-
-
 # ------------------------------------------------------------------------------
 # Plot functions — each returns a ggplot object
 # ------------------------------------------------------------------------------
 
-#' @export
-plot_shift_importance <- function(shift_result,
-                                  label_A = "Direct (MC)",
-                                  label_B = "Gibbs (SC)") {
-
-  imp   <- shift_result$influential$importance_A_to_B
-  acc   <- shift_result$influential$classifier_accuracy
-  c2st  <- shift_result$influential$c2st
-
-  # coerce importance > 0 to character so scale_fill_manual keys are unambiguous
-  imp$positive <- ifelse(imp$importance > 0, "positive", "negative")
-
-  ggplot2::ggplot(imp,
-                  ggplot2::aes(x = reorder(variable, importance),
-                               y = importance,
-                               fill = positive)) +
-    ggplot2::geom_col(width = 0.6, show.legend = FALSE) +
-    ggplot2::scale_fill_manual(
-      values = c(positive = "#3daADD", negative = "#AAAAAA")
-    ) +
-    ggplot2::coord_flip() +
-    ggplot2::labs(
-      title    = "Method 1: Which parameters drive the distributional difference?",
-      subtitle = sprintf(
-        "%s-vs-%s classifier  |  C2ST accuracy = %.3f  |  z = %.2f  |  p = %.3g",
-        label_A, label_B, acc, c2st$z, c2st$p_value),
-      x = NULL,
-      y = "Importance (drop in classifier accuracy)"
-    ) +
-    ggplot2::theme_minimal(base_size = 13)
-}
-
+# NOTE:
+# plot_shift_importance() has been removed because feature importance
+# is no longer computed. Method 1 now reports only the classifier
+# accuracy and C2ST statistics.
 
 #' @export
 plot_shift_densities <- function(direct_draws,
@@ -373,30 +276,65 @@ plot_shift_densities <- function(direct_draws,
   varnames <- shift_result$varnames
 
   plots <- lapply(varnames, function(var) {
+
     df <- data.frame(
       value      = c(theta_A[, var], theta_B[, var]),
-      population = rep(c(label_A, label_B),
-                       c(nrow(theta_A), nrow(theta_B)))
+      population = rep(
+        c(label_A, label_B),
+        c(nrow(theta_A), nrow(theta_B))
+      )
     )
-    ggplot2::ggplot(df,
-                    ggplot2::aes(x = value, fill = population, colour = population)) +
-      ggplot2::geom_density(alpha = 0.3, linewidth = 0.8) +
+
+    ggplot2::ggplot(
+      df,
+      ggplot2::aes(
+        x = value,
+        fill = population,
+        colour = population
+      )
+    ) +
+      ggplot2::geom_density(
+        alpha = 0.3,
+        linewidth = 0.8
+      ) +
       ggplot2::scale_fill_manual(
-        values = setNames(c("#378ADD", "#D85A30"), c(label_A, label_B))
+        values = setNames(
+          c("#378ADD", "#D85A30"),
+          c(label_A, label_B)
+        )
       ) +
       ggplot2::scale_colour_manual(
-        values = setNames(c("#185FA5", "#993C1D"), c(label_A, label_B))
+        values = setNames(
+          c("#185FA5", "#993C1D"),
+          c(label_A, label_B)
+        )
       ) +
-      ggplot2::labs(title = var, x = NULL, y = "density") +
+      ggplot2::labs(
+        title = var,
+        x = NULL,
+        y = "density"
+      ) +
       ggplot2::theme_minimal(base_size = 12) +
-      ggplot2::theme(legend.position = "none",
-                     plot.title      = ggplot2::element_text(size = 12))
+      ggplot2::theme(
+        legend.position = "none",
+        plot.title = ggplot2::element_text(size = 12)
+      )
+
   })
 
-  patchwork::wrap_plots(plots, ncol = 2) +
+  patchwork::wrap_plots(
+    plots,
+    ncol = 2
+  ) +
     patchwork::plot_annotation(
-      title    = "Method 2: Marginal density overlays",
-      subtitle = sprintf("Blue = %s  |  Red = %s", label_A, label_B),
-      theme    = ggplot2::theme(plot.title = ggplot2::element_text(size = 14))
+      title = "Method 2: Marginal density overlays",
+      subtitle = sprintf(
+        "Blue = %s  |  Red = %s",
+        label_A,
+        label_B
+      ),
+      theme = ggplot2::theme(
+        plot.title = ggplot2::element_text(size = 14)
+      )
     )
 }

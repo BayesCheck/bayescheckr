@@ -2,7 +2,7 @@
                                    prior_hyper_params) {
   function() {
     theta <- prior_sampler(prior_hyper_params)
-    y <- likelihood_sampler(n_obs, theta)
+    y <- likelihood_sampler(n_obs, theta, prior_hyper_params)
 
     list(
       variables = as.list(theta),
@@ -16,7 +16,7 @@
                                            n_obs, prior_hyper_params, test_fns) {
   function() {
     theta <- prior_sampler(prior_hyper_params)
-    y     <- likelihood_sampler(n_obs, theta)
+    y     <- likelihood_sampler(n_obs, theta, prior_hyper_params)
     # variables: apply each test function to the prior draw
     # this is what SBC will rank the posterior values against
     vars <- lapply(test_fns, function(f) f(theta, y))
@@ -54,7 +54,7 @@ run_sbc <- function(prior_sampler,
   # if test_fns is provided, we don't validate theta structure at all —
   # it can be a list, vector, anything. test_fns defines the comparison.
 
-  y_test <- likelihood_sampler(n_obs, theta_test)
+  y_test <- likelihood_sampler(n_obs, theta_test, prior_hyper_params)
   if (!is.numeric(y_test) && !is.matrix(y_test) && !is.list(y_test))
     stop("likelihood_sampler must return a numeric vector, matrix, or list.")
 

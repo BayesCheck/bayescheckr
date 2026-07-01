@@ -40,7 +40,7 @@ prior_sampler <- function(prior_hyper_params) {
 
 #---------------------------------------------------------------
 #---------------------------------------------------------------
-likelihood_sampler <- function(n, theta) {
+likelihood_sampler <- function(n, theta, prior_hyper_params = NULL) {
   
   mu <- theta[1]
   sigma2 <- theta[2]
@@ -52,7 +52,7 @@ likelihood_sampler <- function(n, theta) {
 
 #---------------------------------------------------------------
 #---------------------------------------------------------------
-posterior_sampler <- function(ndraws, y, prior_hyper_params,
+posterior_sampler <- function(n_draws, y, prior_hyper_params,
                               init = c(mean(y), var(y))) {
 
   a0 <- prior_hyper_params$a0
@@ -62,12 +62,12 @@ posterior_sampler <- function(ndraws, y, prior_hyper_params,
   n <- length(y)
 
   # preallocate storage
-  THETA <- matrix(0, nrow = ndraws, ncol = length(init))
+  THETA <- matrix(0, nrow = n_draws, ncol = length(init))
   
   # initialize
   theta <- init
 
-  for(s in 1:ndraws){
+  for(s in 1:n_draws){
     
     # draw mean given variance and data
     

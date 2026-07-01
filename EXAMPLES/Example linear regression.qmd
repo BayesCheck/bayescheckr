@@ -89,12 +89,13 @@ Now the likelihood. Note, we must make a wrapper to include X (the data matrix) 
 ```{r}
 #| label: likelihood_sampler
 
-likelihood_sampler <- function(n_obs, theta, X){
+likelihood_sampler <- function(n_obs, theta, prior_hyper_params){
   
   #note: We have to put X in prior_hyper_params and unpack it here.
   #This is because the contract in our package is that likelihood_sampler gets
   #only n and theta as inputs.
   
+  X <- prior_hyper_params$X
   p <- ncol(X)
   
   p <- length(theta) - 1
@@ -106,10 +107,6 @@ likelihood_sampler <- function(n_obs, theta, X){
   
   return(y)
 }
-
-likelihood_sampler_wrapped <- function(n_obs, theta) {
-  likelihood_sampler(n_obs = n_obs, theta = theta, prior_hyper_params$X)
-}
 ```
 
 And finally our Gibbs posterior sampler:
@@ -117,7 +114,8 @@ And finally our Gibbs posterior sampler:
 ```{r}
 #| label: posterior-sampler-gibbs
 
-posterior_sampler <- function(ndraws, y, prior_hyper_params, init = c(rep(0, p), 1))
+posterior_sampler <- function(n_draws, y, prior_hyper_params, 
+                              init = c(rep(0, p), 1))
   {
   
   # unpack everything
@@ -130,7 +128,7 @@ posterior_sampler <- function(ndraws, y, prior_hyper_params, init = c(rep(0, p),
   #pre-allocate storage and initialize
   p <- ncol(X)
   n_obs <- length(y)
-  THETA <- matrix(0, nrow = ndraws, ncol = p+1)
+  THETA <- matrix(0, nrow = n_draws, ncol = p+1)
   colnames(THETA) <- c("beta1", "beta2", "sigmasq")
   
   #initialize values
@@ -139,7 +137,7 @@ posterior_sampler <- function(ndraws, y, prior_hyper_params, init = c(rep(0, p),
   v_0_inv <- solve(v_0)
   X_trans <- t(X)
   
-  for(s in 1:ndraws){
+  for(s in 1:n_draws){
     
     beta_n <- solve( v_0_inv + (X_trans%*%X)/theta[p+1] ) %*% 
       ( v_0_inv%*%beta_0 + (X_trans%*%y)/theta[p+1] )
@@ -179,7 +177,7 @@ The function `run_geweke` creates both direct and Gibbs draws from the joint.
 ```{r}
 gibbs_results <- run_geweke(
   prior_sampler = prior_sampler,
-  likelihood_sampler = likelihood_sampler_wrapped,
+  likelihood_sampler = likelihood_sampler,
   posterior_sampler = posterior_sampler,
   n_obs = n_obs,
   n_draws = n_draws,
@@ -197,7 +195,7 @@ The `run_sbc` function computes rank of draws from the posterior and lets us che
 ```{r}
 sbc_results <- run_sbc(
   prior_sampler = prior_sampler,
-  likelihood_sampler = likelihood_sampler_wrapped,
+  likelihood_sampler = likelihood_sampler,
   posterior_sampler = posterior_sampler,
   n_obs = n_obs,
   n_draws = 1000,

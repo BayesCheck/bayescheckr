@@ -21,7 +21,7 @@ iidnorm_prior_sampler <- function(prior_hyper_params) {
 }
 
 #' @export
-iidnorm_likelihood_sampler <- function(n_obs, theta) {
+iidnorm_likelihood_sampler <- function(n_obs, theta, prior_hyper_params) {
   mu <- theta[1]
   sigma2 <- theta[2]
 
@@ -31,7 +31,7 @@ iidnorm_likelihood_sampler <- function(n_obs, theta) {
 }
 
 #' @export
-iidnorm_posterior_sampler <- function(ndraws,
+iidnorm_posterior_sampler <- function(n_draws,
                                       y,
                                       prior_hyper_params,
                                       init = c(mean(y), var(y))
@@ -43,12 +43,12 @@ iidnorm_posterior_sampler <- function(ndraws,
   n <- length(y)
 
   # preallocate storage
-  THETA <- matrix(0, nrow = ndraws, ncol = length(init))
+  THETA <- matrix(0, nrow = n_draws, ncol = length(init))
 
   # initialize
   theta <- init
 
-  for(s in 1:ndraws){
+  for(s in 1:n_draws){
 
     # draw mean given variance and data
 
@@ -93,7 +93,7 @@ linreg_prior_sampler <- function(prior_hyper_params) {
 }
 
 #' @export
-linreg_likelihood_sampler <- function(n_obs, theta) {
+linreg_likelihood_sampler <- function(n_obs, theta, prior_hyper_params) {
   X <- prior_hyper_params$X
   #p <- ncol(X)
   p <- length(theta) - 1
@@ -120,7 +120,7 @@ linreg_posterior_sampler <- function(n_draws,
   #pre-allocate storage and initialize
   p <- ncol(X)
   n_obs <- length(y)
-  THETA <- matrix(0, nrow = ndraws, ncol = p+1)
+  THETA <- matrix(0, nrow = n_draws, ncol = p+1)
   colnames(THETA) <- c("beta1", "beta2", "sigmasq")
 
   #initialize values
@@ -129,7 +129,7 @@ linreg_posterior_sampler <- function(n_draws,
   v_0_inv <- solve(v_0)
   X_trans <- t(X)
 
-  for(s in 1:ndraws){
+  for(s in 1:n_draws){
 
     beta_n <- solve( v_0_inv + (X_trans%*%X)/theta[p+1] ) %*%
       ( v_0_inv%*%beta_0 + (X_trans%*%y)/theta[p+1] )
@@ -333,7 +333,7 @@ doucet_prior_sampler <- function(prior_hyper_params) {
 #now to call SBC and parallelize, only need to wrap local({doucet_prior_sampler})
 
 #' @export
-doucet_likelihood_sampler <- function(n_obs, theta) {
+doucet_likelihood_sampler <- function(n_obs, theta, prior_hyper_params) {
 
   # infer k_max from vector length: 1(k) + k_max(omega) + 2*k_max(a) + 1(sigma2)
   k_max <- (length(theta) - 2) / 3
@@ -473,7 +473,7 @@ primiceri_prior_sampler <- function(prior_hyper_params){
 }
 
 #' @export
-primiceri_likelihood_sampler <- function(n_obs, theta){
+primiceri_likelihood_sampler <- function(n_obs, theta, prior_hyper_params){
   rnorm(n_obs, mean = theta[["theta"]], sd = sqrt(theta[["sigmasq"]]))
 }
 
@@ -483,7 +483,7 @@ primiceri_likelihood_sampler <- function(n_obs, theta){
       iidnorm = iidnorm_prior_sampler,
       linreg  = linreg_prior_sampler,
       doucet  = doucet_prior_sampler,
-      primiceri = primiceri_likelihood_sampler
+      primiceri = primiceri_prior_sampler
     ),
     likelihood = list(
       iidnorm = iidnorm_likelihood_sampler,

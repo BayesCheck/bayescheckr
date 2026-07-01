@@ -482,12 +482,14 @@ primiceri_likelihood_sampler <- function(n_obs, theta){
     prior = list(
       iidnorm = iidnorm_prior_sampler,
       linreg  = linreg_prior_sampler,
-      doucet  = doucet_prior_sampler
+      doucet  = doucet_prior_sampler,
+      primiceri = primiceri_likelihood_sampler
     ),
     likelihood = list(
       iidnorm = iidnorm_likelihood_sampler,
       linreg  = linreg_likelihood_sampler,
-      doucet  = doucet_likelihood_sampler
+      doucet  = doucet_likelihood_sampler,
+      primiceri = primiceri_likelihood_sampler
     ),
     posterior = list(
       iidnorm = iidnorm_posterior_sampler,

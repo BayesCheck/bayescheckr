@@ -171,7 +171,9 @@ geweke_mc_draws <- function(prior_sampler,
                       lapply(gen_data$generated, function(g) g$y)) #from Claude
   colnames(y_matrix) <- paste0("y", 1:n_obs)
 
-  wide_matrix <- cbind(theta_matrix, y_matrix)
+  wide_matrix <- draws_matrix |>
+    dplyr::group_by(sim_id) |>
+    tidyr::pivot_wider(names_from = variable, values_from = simulated_value)
 
   draws_matrix <- data.frame(gen_data$variables) |>
     dplyr::mutate(sim_id = dplyr::row_number()) |>

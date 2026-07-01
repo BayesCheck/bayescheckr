@@ -373,7 +373,7 @@ plot_shift_importance <- function(shift_result,
                                fill = positive)) +
     ggplot2::geom_col(width = 0.6, show.legend = FALSE) +
     ggplot2::scale_fill_manual(
-      values = c(positive = "#D85A30", negative = "#AAAAAA")
+      values = c(positive = "#3daADD", negative = "#AAAAAA")
     ) +
     ggplot2::coord_flip() +
     ggplot2::labs(

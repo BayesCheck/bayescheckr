@@ -9,12 +9,11 @@
 # Public functions
 # ----------------
 #   run_distributional_shift()     main entry point; returns a named list
-#   tabulate_shift_divergences()   Method 3 — numeric divergence table
+#   tabulate_shift_divergences()   Method 2 — numeric divergence table
 #   plot_shift_importance()        Method 1 — permutation importance bar chart
-#   plot_shift_prototypes()        Method 2 — neighbourhood density bar chart
-#   plot_shift_densities()         Method 3 — marginal density overlays
+#   plot_shift_densities()         Method 2 — marginal density overlays
 #
-# Dependencies: e1071, cluster, ggplot2, tidyr, patchwork
+# Dependencies: e1071, ggplot2, tidyr, patchwork
 
 
 # ------------------------------------------------------------------------------
@@ -55,22 +54,15 @@
 }
 
 
-.neighbourhood_density <- function(prototype, samples, radius) {
-  dists <- sqrt(rowSums(sweep(as.matrix(samples), 2,
-                              as.numeric(prototype), "-")^2))
-  mean(dists < radius)
-}
-
-
-.auto_radius <- function(theta_matrix, max_rows = 500) {
-  idx <- sample(nrow(theta_matrix), min(max_rows, nrow(theta_matrix)))
-  2* median(dist(theta_matrix[idx, , drop = FALSE]))
-}
-
-
 # ------------------------------------------------------------------------------
-# Method 1 — influential-example explanations
+# Method 1 — influential-example explanations (classifier two-sample test)
 # ------------------------------------------------------------------------------
+#
+# The A-vs-B classifier accuracy doubles as a Classifier Two-Sample Test
+# (C2ST; Lopez-Paz & Oquab, ICLR 2017). Under H0: A and B are drawn from the
+# same distribution, the held-out accuracy t_hat is approximately
+# Normal(1/2, 1/(4*n_te)). We report the accuracy as the C2ST statistic, a
+# z-score against that null, and a one-sided p-value for "accuracy > chance".
 
 
 .run_influential <- function(theta_A,
@@ -138,6 +130,8 @@
   ytest <- c(rep(0,nrow(A_test)),
              rep(1,nrow(B_test)))
 
+  n_te <- length(ytest)
+
   p <- predict(
     fit_AB,
     xgboost::xgb.DMatrix(as.matrix(Xtest))
@@ -146,6 +140,30 @@
   pred <- ifelse(p>.5,1,0)
 
   accuracy <- mean(pred==ytest)
+
+
+
+  ############################################################
+  ## Classifier two-sample test (C2ST) statistics
+  ##
+  ## t_hat = accuracy is the C2ST statistic. Under H0 ("A and B come from
+  ## the same distribution"), n_te * t_hat ~ Binomial(n_te, 1/2), which for
+  ## large n_te is approximated by Normal(1/2, 1/(4*n_te)) (Lopez-Paz &
+  ## Oquab, 2017, Sec. 3.1). We use that null to build a z-score and a
+  ## one-sided p-value against "accuracy > chance".
+  ############################################################
+
+  c2st_se      <- sqrt(1 / (4 * n_te))
+  c2st_z       <- (accuracy - 0.5) / c2st_se
+  c2st_pvalue  <- stats::pnorm(c2st_z, lower.tail = FALSE)
+
+  c2st <- list(
+    statistic = accuracy,   # t_hat, in "fraction correctly classified" units
+    n_test    = n_te,
+    se_null   = c2st_se,
+    z         = c2st_z,
+    p_value   = c2st_pvalue
+  )
 
 
 
@@ -206,6 +224,8 @@
 
     classifier_accuracy = accuracy,
 
+    c2st = c2st,
+
     importance = importance_AB,
 
     importance_A_to_B = importance_AB,
@@ -217,43 +237,7 @@
 
 
 # ------------------------------------------------------------------------------
-# Method 2 — prototype-neighbourhood explanations
-# ------------------------------------------------------------------------------
-
-
-.run_prototypes <- function(theta_A, theta_B, varnames, k, radius) {
-
-  pam_fit <- cluster::pam(theta_A, k = k, metric = "euclidean")
-  protos  <- as.data.frame(pam_fit$medoids)
-
-  rows <- lapply(seq_len(k), function(i) {
-    proto  <- protos[i, ]
-    dens_A <- .neighbourhood_density(proto, theta_A, radius)
-    dens_B <- .neighbourhood_density(proto, theta_B, radius)
-    data.frame(
-      prototype      = paste0("P", i),
-      density_A      = dens_A,
-      density_B      = dens_B,
-      ratio_B_over_A = dens_B / max(dens_A, 1e-9),
-      verdict        = ifelse(
-        dens_B < dens_A * 0.7, "Under-represented in B",
-        ifelse(dens_B > dens_A * 1.3, "Over-represented in B", "Similar")
-      ),
-      stringsAsFactors = FALSE
-    )
-  })
-
-  list(
-    prototypes  = protos,
-    comparison  = do.call(rbind, rows),
-    radius_used = radius,
-    k_used      = k
-  )
-}
-
-
-# ------------------------------------------------------------------------------
-# Method 3 — divergence metrics
+# Method 2 — divergence metrics
 # ------------------------------------------------------------------------------
 
 
@@ -287,9 +271,7 @@ run_distributional_shift <- function(
     direct_draws,
     gibbs_draws,
     train_frac = 0.8,
-    nrounds = 100,
-    k_prototypes = 4L,
-    radius = NULL
+    nrounds = 100
 ) {
 
   theta_A  <- direct_draws$theta
@@ -300,12 +282,6 @@ run_distributional_shift <- function(
     stop("direct_draws$theta and gibbs_draws$theta must have the same column names.")
   }
 
-  if (is.null(radius)) {
-    radius <- .auto_radius(theta_A)
-  }
-
-  k <- min(k_prototypes, nrow(theta_A) - 1L)
-
   message("Method 1: training A-vs-B classifier ...")
   m1 <- .run_influential(
     theta_A,
@@ -315,15 +291,12 @@ run_distributional_shift <- function(
     nrounds = nrounds
   )
 
-  message("Method 2: computing prototype neighbourhoods ...")
-  m2 <- .run_prototypes(theta_A, theta_B, varnames, k = k, radius = radius)
-
-  message("Method 3: computing divergence metrics ...")
-  m3 <- .run_divergences(theta_A, theta_B, varnames)
+  message("Method 2: computing divergence metrics ...")
+  m2 <- .run_divergences(theta_A, theta_B, varnames)
 
   synthesis <- merge(
     m1$importance_A_to_B,
-    m3,
+    m2,
     by = "variable",
     all.x = TRUE
   )
@@ -332,8 +305,7 @@ run_distributional_shift <- function(
 
   list(
     influential = m1,
-    prototypes  = m2,
-    divergences = m3,
+    divergences = m2,
     synthesis   = synthesis,
     varnames    = varnames,
     n_A         = nrow(theta_A),
@@ -343,7 +315,7 @@ run_distributional_shift <- function(
 
 
 # ------------------------------------------------------------------------------
-# Tabulate divergences — Method 3 numeric output
+# Tabulate divergences — Method 2 numeric output
 # ------------------------------------------------------------------------------
 
 #' @export
@@ -361,8 +333,9 @@ plot_shift_importance <- function(shift_result,
                                   label_A = "Direct (MC)",
                                   label_B = "Gibbs (SC)") {
 
-  imp <- shift_result$influential$importance_A_to_B
-  acc <- shift_result$influential$classifier_accuracy
+  imp   <- shift_result$influential$importance_A_to_B
+  acc   <- shift_result$influential$classifier_accuracy
+  c2st  <- shift_result$influential$c2st
 
   # coerce importance > 0 to character so scale_fill_manual keys are unambiguous
   imp$positive <- ifelse(imp$importance > 0, "positive", "negative")
@@ -379,45 +352,10 @@ plot_shift_importance <- function(shift_result,
     ggplot2::labs(
       title    = "Method 1: Which parameters drive the distributional difference?",
       subtitle = sprintf(
-        "Permutation importance from %s-vs-%s classifier  |  accuracy = %.3f",
-        label_A, label_B, acc),
+        "%s-vs-%s classifier  |  C2ST accuracy = %.3f  |  z = %.2f  |  p = %.3g",
+        label_A, label_B, acc, c2st$z, c2st$p_value),
       x = NULL,
       y = "Importance (drop in classifier accuracy)"
-    ) +
-    ggplot2::theme_minimal(base_size = 13)
-}
-
-
-#' @export
-plot_shift_prototypes <- function(shift_result,
-                                  label_A = "Direct (MC)",
-                                  label_B = "Gibbs (SC)") {
-
-  comp <- shift_result$prototypes$comparison[, c("prototype",
-                                                 "density_A",
-                                                 "density_B")]
-
-  long <- tidyr::pivot_longer(comp,
-                              cols      = c("density_A", "density_B"),
-                              names_to  = "population",
-                              values_to = "density"
-  )
-  long$population <- ifelse(long$population == "density_A", label_A, label_B)
-
-  ggplot2::ggplot(long,
-                  ggplot2::aes(x = prototype, y = density, fill = population)) +
-    ggplot2::geom_col(position = "dodge", width = 0.6) +
-    ggplot2::scale_fill_manual(
-      values = setNames(c("#378ADD", "#D85A30"), c(label_A, label_B))
-    ) +
-    ggplot2::labs(
-      title    = "Method 2: Prototype-neighbourhood density comparison",
-      subtitle = sprintf(
-        "Fraction of draws within radius %.3g of each A-prototype",
-        shift_result$prototypes$radius_used),
-      x    = "Prototype",
-      y    = "Local density",
-      fill = NULL
     ) +
     ggplot2::theme_minimal(base_size = 13)
 }
@@ -457,7 +395,7 @@ plot_shift_densities <- function(direct_draws,
 
   patchwork::wrap_plots(plots, ncol = 2) +
     patchwork::plot_annotation(
-      title    = "Method 3: Marginal density overlays",
+      title    = "Method 2: Marginal density overlays",
       subtitle = sprintf("Blue = %s  |  Red = %s", label_A, label_B),
       theme    = ggplot2::theme(plot.title = ggplot2::element_text(size = 14))
     )

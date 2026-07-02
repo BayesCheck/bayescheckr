@@ -50,7 +50,7 @@ prior_hyper_params <- list(
 
 my_prior <- function(hyper) {
 
-  c(
+  list(
     mu = rnorm(
       1,
       mean = hyper$mu_0,
@@ -113,6 +113,26 @@ my_posterior <- function(
 
 }
 ```
+## Test functions
+
+Both SBC and Geweke's validation framework only validate on the scalar level. This means validating each model parameter on its own is no issue, but to check the interaction between parameters, we must set up some test functions that transform many parameters into a scalar, for example, multiplying them together.
+Our package contains a `make_test_functions` function that makes this process easy and checks if the test functions are valid:
+
+```{r}
+test_fns <- make_test_functions(
+
+  mu_marginal      = function(theta, y) theta$mu,
+  sigmasq_marginal = function(theta, y) theta$sigmasq,
+  product          = function(theta, y) theta$mu * theta$sigma,
+  log_like         = function(theta, y) sum(
+                                          dnorm(
+                                          y, 
+                                          theta$mu, 
+                                          sqrt(theta$sigmasq), 
+                                          log = TRUE))
+)
+
+```
 
 ------------------------------------------------------------------------
 
@@ -136,6 +156,7 @@ result <- run_sbc(
   n_draws = 10000,
 
   prior_hyper_params = prior_hyper_params,
+  test_fns = test_fns,
 
   parallelize = TRUE,
   globals = NULL
@@ -149,7 +170,8 @@ result <- run_sbc(
 - simulation metadata
 - posterior draws
 - true parameter values
-- diagnostic summaries
+- diagnostic summaries from the established test functions
+(NOTE: they must include "marginal" test functions if you wish to verify parameters on their own.)
 
 ------------------------------------------------------------------------
 

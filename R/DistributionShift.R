@@ -192,7 +192,9 @@ tabulate_classifier_tests <- function(data_input, #a dataframe or list
                                       label_prob, #a string
                                       alpha = 0.05, #a number: sig. level
                                       model_fit = NULL, #log_fit or some other
-                                      is_glm #a logical: TRUE/FALSE
+                                      is_glm, #a logical: TRUE/FALSE
+                                      predict_fn = NULL, #prediction function
+                                      n_perm = 20 #a number: non-GLM feat. imp.
                                       ) {
 
   n_te <- nrow(data_input)
@@ -225,7 +227,26 @@ tabulate_classifier_tests <- function(data_input, #a dataframe or list
   }
 
   else {
-    data_features <- NULL #... [Claude - fill in here]
+    #from Claude - to debug/stress test with Primiceri starting Monday 7/6
+
+    feature_cols <- setdiff(names(data_input), c(correct_label, label_prob))
+    baseline_t <- data_tstat$t_stat
+    true_label_num <- as.numeric(as.character(data_input[[correct_label]]))
+
+    data_features <- purrr::map_dfr(feature_cols, function(f) {
+      perm_t <- replicate(n_perm, {
+        data_perm <- data_input
+        data_perm[[f]] <- sample(data_perm[[f]])
+        prob_perm <- predict_fn(model_fit, data_perm)
+        pred_perm <- as.numeric(prob_perm > 0.5)
+        mean(pred_perm == true_label_num, na.rm = TRUE)
+      })
+      data.frame(
+        feature = f,
+        observed_drop = baseline_t - mean(perm_t),
+        p_value = (sum(perm_t >= baseline_t) + 1) / (n_perm + 1)
+      )
+    })
   }
 
   return(list(t_statistic = data_tstat,

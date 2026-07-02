@@ -213,13 +213,24 @@ tabulate_classifier_tests <- function(data_input, #a dataframe or list
     )
 
   #add the feature importance
-  data_features <- data.frame(feature = parsnip::tidy(model_fit)$term,
-                              z_score = parsnip::tidy(model_fit)$statistic,
-                              p_value = parsnip::tidy(model_fit)$p.value)
 
-  #return t-stat and feature importance dataframes together
+  if (is_glm) {
+    data_features <- data.frame(feature = parsnip::tidy(model_fit)$term,
+                                z_score = parsnip::tidy(model_fit)$statistic,
+                                p_value = parsnip::tidy(model_fit)$p.value)
+
+    #return t-stat and feature importance dataframes together
+    return(list(t_statistic = data_tstat,
+                feature_importance = data_features))
+  }
+
+  else {
+    data_features <- ... [Claude - fill in here]
+  }
+
   return(list(t_statistic = data_tstat,
-       feature_importance = data_features))
+              feature_importance = data_features))
+
 }
 
 # ------------------------------------------------------------------------------

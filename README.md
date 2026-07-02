@@ -1,207 +1,518 @@
-------------------------------------------------------------------------
-
 # bayescheckr
 
-**bayescheckr** is an R package for validating Bayesian posterior samplers. It several approaches so you can be confident your sampler is drawing from the right posterior before you use it for inference.
+**bayescheckr** is an R package for validating Bayesian posterior samplers. It provides multiple complementary validation methods—including **Simulation-Based Calibration (SBC)**, **Geweke's joint-distribution test**, and **distributional-shift diagnostics**—to help ensure that posterior samplers produce draws from the correct target distribution before they are used for inference.
+
+Rather than relying on a single diagnostic, **bayescheckr** offers several independent validation approaches. Different methods are sensitive to different implementation errors, making it easier to identify subtle bugs that may otherwise go unnoticed.
 
 ------------------------------------------------------------------------
 
 ## Installation
 
-``` r
-# Install from GitHub (once public)
-devtools::install_github("BayesCheck/bayescheckr")
+Install the package directly from GitHub:
 
-# Or load from source during development
+``` r
+devtools::install_github("BayesCheck/bayescheckr")
+```
+
+When developing the package locally:
+
+``` r
 devtools::load_all(".")
 ```
 
-**Dependencies:** `SBC`, `posterior`, `coda`, `future`, `tidyverse`
+# Quick Start
+
+Every validation method in **bayescheckr** relies on three user-supplied functions that define your Bayesian model:
+
+1.  **Prior sampler** – draws parameters from the prior distribution.
+2.  **Likelihood sampler** – simulates observations given parameters.
+3.  **Posterior sampler** – produces posterior draws given observed data.
+
+Once these three functions are supplied, the same model specification can be used throughout the package for SBC, Geweke diagnostics, and Classification testing.
 
 ------------------------------------------------------------------------
 
-## Quick start
-
-The three things you always need to provide are a **prior sampler**, a **likelihood sampler**, and a **posterior sampler**. You might also want to set some prior hyperparameters. `bayescheckr` does the rest.
+## Example model
 
 ``` r
 library(bayescheckr)
 
 # Hyperparameters passed to all three samplers
-prior_hyper_params <- list(mu_0 = 0, sigma_0 = 1, sigma = 2)
+prior_hyper_params <- list(
+  mu_0    = 0,
+  sigma_0 = 1,
+  sigma   = 2
+)
 
-# 1. Prior: returns a *named* vector — names become parameter labels
+#----------------------------------------------------------
+# Prior sampler
+#----------------------------------------------------------
+
 my_prior <- function(hyper) {
-  c(mu = rnorm(1, mean = hyper$mu_0, sd = hyper$sigma_0))
+
+  c(
+    mu = rnorm(
+      1,
+      mean = hyper$mu_0,
+      sd   = hyper$sigma_0
+    )
+  )
+
 }
 
-# 2. Likelihood: (n_obs, theta) -> returns a matrix or list (best to make output general).
-my_likelihood <- function(n, theta) {
-  rnorm(n, mean = theta["mu"], sd = prior_hyper_params$sigma)
+#----------------------------------------------------------
+# Likelihood sampler
+#----------------------------------------------------------
+
+my_likelihood <- function(n_obs, theta) {
+
+  rnorm(
+    n_obs,
+    mean = theta["mu"],
+    sd   = prior_hyper_params$sigma
+  )
+
 }
 
-# 3. Posterior: (ndraws, y, prior_hyper_params) -> ndraws x n_params matrix
-my_posterior <- function(ndraws, y, prior_hyper_params) {
-  n         <- length(y)
-  sigma_n_sq <- 1 / (n / prior_hyper_params$sigma^2 + 1 / prior_hyper_params$sigma_0^2)
-  mu_n       <- sigma_n_sq * (sum(y) / prior_hyper_params$sigma^2 +
-                              prior_hyper_params$mu_0 / prior_hyper_params$sigma_0^2)
-  matrix(rnorm(ndraws, mu_n, sqrt(sigma_n_sq)), ncol = 1, dimnames = list(NULL, "mu"))
+#----------------------------------------------------------
+# Posterior sampler
+#----------------------------------------------------------
+
+my_posterior <- function(
+  ndraws,
+  y,
+  prior_hyper_params
+) {
+
+  n <- length(y)
+
+  sigma_n_sq <-
+    1 /
+    (
+      n / prior_hyper_params$sigma^2 +
+      1 / prior_hyper_params$sigma_0^2
+    )
+
+  mu_n <-
+    sigma_n_sq *
+    (
+      sum(y) / prior_hyper_params$sigma^2 +
+      prior_hyper_params$mu_0 /
+      prior_hyper_params$sigma_0^2
+    )
+
+  matrix(
+    rnorm(
+      ndraws,
+      mu_n,
+      sqrt(sigma_n_sq)
+    ),
+    ncol = 1,
+    dimnames = list(NULL, "mu")
+  )
+
 }
 ```
 
 ------------------------------------------------------------------------
 
-## SBC
+# Simulation-Based Calibration (SBC)
 
-SBC runs your sampler across many simulated datasets and checks that the true parameter ranks uniformly among the posterior draws. If your sampler is correct, the rank histogram should be flat.
+Simulation-Based Calibration (SBC) validates Bayesian posterior samplers by repeatedly simulating parameters from the prior, generating synthetic datasets, and checking whether the true parameter values are uniformly ranked among posterior draws.
+
+If the posterior sampler is correct, every parameter should have a **uniform rank histogram**, and the empirical cumulative distribution function (ECDF) differences should fluctuate around zero.
+
+Running SBC is straightforward:
 
 ``` r
 result <- run_sbc(
+
   prior_sampler      = my_prior,
   likelihood_sampler = my_likelihood,
   posterior_sampler  = my_posterior,
-  n_sims             = 300,
-  n_obs              = 30,
-  n_draws            = 500,
-  prior_hyper_params = prior_hyper_params
+
+  n_sims  = 1000,
+  n_obs   = 100,
+  n_draws = 10000,
+
+  prior_hyper_params = prior_hyper_params,
+
+  parallelize = TRUE,
+  globals = NULL
+
 )
+```
 
-# Rank histogram — should be flat
+`run_sbc()` returns a `bayescheckr_sbc` object containing
+
+- SBC output from the `SBC` package
+- simulation metadata
+- posterior draws
+- true parameter values
+- diagnostic summaries
+
+------------------------------------------------------------------------
+
+## Visual diagnostics
+
+Rank histograms should appear approximately uniform.
+
+``` r
 SBC::plot_rank_hist(result$sbc_result)
+```
 
-# ECDF difference — should hug zero
+The ECDF difference plot should remain close to zero.
+
+``` r
 SBC::plot_ecdf_diff(result$sbc_result)
 ```
 
-### Test functions
+Together, these provide a quick visual assessment of posterior calibration.
 
-By default SBC checks raw parameter ranks. You can also check ranks of *derived quantities* using test functions — useful for catching bugs that only show up in nonlinear summaries of the posterior.
+------------------------------------------------------------------------
+
+## Parallel execution
+
+Large SBC experiments can be computationally intensive.
+
+`run_sbc()` supports parallel execution using the **future** framework. Setting
+
+``` r
+parallelize = TRUE
+```
+
+automatically distributes independent simulations across available workers.
+
+------------------------------------------------------------------------
+
+# Test Functions
+
+By default, SBC validates the posterior using the model parameters themselves.
+
+Often, however, implementation errors only appear after nonlinear transformations or in predictive summaries. To detect these problems, **bayescheckr** allows users to define **test functions**, which transform posterior draws into scalar summaries before recomputing SBC ranks.
+
+For example,
 
 ``` r
 test_fns <- make_test_functions(
-  mu_sq    = function(theta, y) theta["mu"]^2,
-  log_like = function(theta, y)
-    sum(dnorm(y, theta["mu"], prior_hyper_params$sigma, log = TRUE))
+
+  mu_sq = function(theta, y) {
+
+    theta["mu"]^2
+
+  },
+
+  log_like = function(theta, y) {
+
+    sum(
+
+      dnorm(
+        y,
+        theta["mu"],
+        prior_hyper_params$sigma,
+        log = TRUE
+      )
+
+    )
+
+  }
+
+)
+```
+
+The SBC ranks can then be recomputed using these derived quantities:
+
+``` r
+ranked <- recompute_ranks(
+  result,
+  test_fns
 )
 
-# Recompute ranks on test functions rather than raw parameters
-ranked  <- recompute_ranks(result, test_fns)
-shell   <- ranks_to_sbc_results(ranked)
+shell <- ranks_to_sbc_results(
+  ranked
+)
+```
 
+Visual diagnostics are generated exactly as before.
+
+``` r
 SBC::plot_rank_hist(shell)
+
 SBC::plot_ecdf_diff(shell)
 ```
 
+Using informative test functions often reveals bugs that remain hidden when examining raw parameters alone.
+
+# Geweke Joint-Distribution Test
+
+The Geweke test compares two different sampling procedures that should produce draws from the same joint distribution (p(\theta, y)).
+
+If the posterior sampler is implemented correctly, both procedures generate samples from the same stationary distribution, even though they obtain those samples in different ways.
+
+The two procedures are:
+
+- **Marginal–conditional (direct) sampler** – independently draw parameters from the prior, then simulate data from the likelihood.
+- **Successive–conditional (Gibbs) sampler** – repeatedly alternate between sampling from the posterior (p(\theta \mid y)) and the likelihood (p(y \mid \theta)).
+
+Agreement between these two sampling procedures provides evidence that the posterior sampler is correct.
+
 ------------------------------------------------------------------------
 
-## Geweke test
+## Generating draws
 
-The Geweke test compares two samplers that should share the same stationary distribution:
-
-- **Direct (marginal-conditional)** draws: sample θ from the prior, then y from the likelihood. These are i.i.d. draws from the joint distribution p(θ, y).
-- **Successive-conditional (Gibbs)** draws: starting from any initial value, alternate between drawing θ \| y from the posterior and y \| θ from the likelihood. At stationarity these are also draws from p(θ, y).
-
-If your posterior sampler is correct, both arms have the same marginal distribution for every test function h(θ, y). The QQ plots should fall on the y = x diagonal and the formal tests should return large p-values.
+The marginal–conditional sampler generates independent draws from the joint distribution.
 
 ``` r
 direct_draws <- geweke_mc_draws(
+
   prior_sampler      = my_prior,
   likelihood_sampler = my_likelihood,
-  prior_hyper_params = prior_hyper_params,
-  n_draws            = 2000,
-  n_obs              = 30
-)
 
+  prior_hyper_params = prior_hyper_params,
+
+  n_draws = 2000,
+  n_obs   = 30
+
+)
+```
+
+The successive–conditional sampler repeatedly alternates between posterior sampling and likelihood simulation.
+
+``` r
 gibbs_draws <- geweke_sc_draws(
+
   prior_sampler      = my_prior,
   likelihood_sampler = my_likelihood,
   posterior_sampler  = my_posterior,
-  prior_hyper_params = prior_hyper_params,
-  n_draws            = 2000,
-  n_obs              = 30
-)
 
-# QQ plots — points should lie on y = x
-plot_geweke_tests(direct_draws, gibbs_draws, test_fns)
+  prior_hyper_params = prior_hyper_params,
+
+  n_draws = 2000,
+  n_obs   = 30
+
+)
 ```
 
-### Formal tests
+------------------------------------------------------------------------
 
-`tabulate_geweke_tests()` returns a data frame with three tests per test function:
+## QQ plots
+
+For every supplied test function, **bayescheckr** compares the two sets of draws using QQ plots.
 
 ``` r
-results <- tabulate_geweke_tests(direct_draws, gibbs_draws, test_fns)
+plot_geweke_tests(
+  direct_draws,
+  gibbs_draws,
+  test_fns
+)
+```
+
+If both sampling procedures target the same joint distribution, the plotted points should closely follow the 45° line.
+
+Systematic departures from the diagonal indicate discrepancies between the two distributions and suggest an error in the posterior implementation.
+
+------------------------------------------------------------------------
+
+# Formal Geweke Tests
+
+In addition to visual diagnostics, **bayescheckr** performs several statistical tests.
+
+``` r
+results <- tabulate_geweke_tests(
+  direct_draws,
+  gibbs_draws,
+  test_fns
+)
+
 print(results)
 ```
 
-| Row | What it tests |
-|----|----|
-| `Geweke statistic / p_value` | Difference-in-means z-test (Geweke 2004) using long-run variance for the Gibbs arm |
-| `KS statistic / p_value` | Kolmogorov–Smirnov two-sample test |
-| `Convergence statistic / p_value` | `coda::geweke.diag` on the Gibbs chain — checks internal chain convergence |
+The returned data frame contains one row for each test function and one column for each diagnostic.
 
-Large p-values (\> 0.05) across all three indicate no evidence of miscalibration.
+| Statistic | Purpose |
+|----------------------|--------------------------------------------------|
+| Geweke statistic | Difference-in-means z-test comparing the two sampling procedures |
+| Geweke p-value | Evidence against equality of expectations |
+| KS statistic | Two-sample Kolmogorov–Smirnov test |
+| KS p-value | Evidence against equality of distributions |
+| Convergence statistic | Geweke convergence diagnostic computed on the Gibbs chain |
+| Convergence p-value | Evidence against within-chain convergence |
 
-------------------------------------------------------------------------
+Ideally,
 
-## Function reference
+- QQ plots follow the diagonal,
+- Geweke p-values are large,
+- KS p-values are large,
+- convergence diagnostics show no evidence of nonstationarity.
 
-### SBC
-
-| Function | Description |
-|----|----|
-| `run_sbc()` | Main entry point. Runs SBC and returns a `bayescheckr_sbc` object |
-| `recompute_ranks()` | Recomputes ranks using user-supplied test functions |
-| `rank_mean_test()` | Tests whether the rank mean equals the expected value `L/2` |
-| `rank_variance_test()` | Tests whether rank variance matches the uniform expectation |
-| `rank_ks_test()` | KS test of rank uniformity |
-| `rank_kl_divergence()` | KL divergence between empirical and uniform rank distribution |
-
-### Geweke
-
-| Function | Description |
-|----|----|
-| `geweke_mc_draws()` | Generates direct (marginal-conditional) draws |
-| `geweke_sc_draws()` | Runs the successive-conditional (Gibbs) chain |
-| `tabulate_geweke_tests()` | Returns dataframe with Geweke z-test, KS test, and convergence diagnostics in one call |
-| `plot_geweke_tests()` | QQ plots for each test function |
-
-### Shared
-
-| Function | Description |
-|----|----|
-| `make_test_functions()` | Validates and packages user-supplied test functions |
+No single diagnostic should be interpreted in isolation. The combination of graphical and formal tests provides substantially stronger evidence of correctness than any individual statistic.
 
 ------------------------------------------------------------------------
 
-## Sampler interface
+#  Validation by classification
 
-All three samplers must follow these exact signatures:
+Words
+
+------------------------------------------------------------------------
+
+## Running a Classification test
 
 ``` r
-# Prior: no arguments other than hyperparameters; returns a named vector
-prior_sampler <- function(prior_hyper_params) { ... }
-
-# Likelihood: (n_obs, theta) -> numeric vector of length n_obs,
-#             or matrix of dimensions n_obs x p for multivariate observations
-likelihood_sampler <- function(n_obs, theta) { ... }
-
-# Posterior: (ndraws, y, prior_hyper_params) -> ndraws x n_params matrix
-#            column names must match the names returned by prior_sampler
-posterior_sampler <- function(ndraws, y, prior_hyper_params) { ... }
+shift_result <- run_distributional_shift(
+  direct_draws = thetaA,
+  gibbs_draws = thetaB,
+  train_frac = 0.8,
+  nrounds = 100
+)
 ```
 
-Test functions must take exactly `(theta, y)` and return a scalar:
+words
 
 ``` r
-# theta: named numeric vector (one draw)
-# y:     numeric vector of observations
-my_test <- function(theta, y) { ... }  # must return a single number
+c2st <- shift_result$influential$c2st
+cat(sprintf(
+  "C2ST accuracy = %.3f  (n_test = %d)\n  z = %.2f, p = %.3g\n",
+  c2st$statistic, c2st$n_test, c2st$z, c2st$p_value
+))
+```
+
+more words
+
+``` r
+print(tabulate_shift_divergences(shift_result))
 ```
 
 ------------------------------------------------------------------------
 
-## Variable-dimension samplers (RJMCMC)
+## Supported classifiers: Not True but might be a good idea to make it do this
 
-`run_distributional_shift()` requires each posterior draw to have a fixed-dimensional representation. For RJMCMC output, users should embed each draw into the maximum model dimension, padding inactive parameters with NA (or another consistent placeholder) and optionally including indicator variables for parameter activity and the model dimension k
+Several classification algorithms are available.
+
+| Method | Typical use |
+|--------------------|----------------------------------------------------|
+| `"logistic"` | Fast baseline diagnostic |
+| `"random_forest"` | Captures nonlinear interactions |
+| `"xgboost"` | High predictive accuracy for subtle distributional differences |
+| `"svm"` | Effective for complex decision boundaries |
+
+Different classifiers may detect different types of posterior discrepancies. When computationally feasible, comparing several classifiers is recommended.
+
+------------------------------------------------------------------------
+
+## Interpreting the results
+
+Suppose a classifier achieves approximately **50% accuracy** on held-out data and has relatively equal feature importance for all features.
+
+This indicates that the classifier cannot reliably distinguish between the two posterior sample sets, providing evidence that the samplers generate similar distributions.
+
+On the other hand, classification accuracy substantially above chance suggests a detectable distributional shift.
+
+While this does not identify the source of the discrepancy, it provides strong evidence that the candidate sampler differs from the reference distribution.
+
+------------------------------------------------------------------------
+
+# Function Reference
+
+## Simulation-Based Calibration
+
+| Function | Description |
+|---------------------|---------------------------------------------------|
+| `run_sbc()` | Runs Simulation-Based Calibration and returns a `bayescheckr_sbc` object. |
+| `recompute_ranks()` | Recomputes SBC ranks using user-defined test functions. |
+| `rank_mean_test()` | Tests whether the empirical rank mean equals its theoretical value. |
+| `rank_variance_test()` | Tests whether the empirical rank variance matches the uniform expectation. |
+| `rank_ks_test()` | Performs a Kolmogorov–Smirnov test for rank uniformity. |
+| `rank_kl_divergence()` | Computes the KL divergence between empirical and uniform rank distributions. |
+
+------------------------------------------------------------------------
+
+## Geweke Diagnostics
+
+| Function | Description |
+|----------------------|-------------------------------------------------|
+| `geweke_mc_draws()` | Generates marginal–conditional (direct) draws. |
+| `geweke_sc_draws()` | Runs the successive–conditional Gibbs sampler. |
+| `plot_geweke_tests()` | Produces QQ plots for each supplied test function. |
+| `tabulate_geweke_tests()` | Computes Geweke, KS, and convergence diagnostics in a single table. |
+
+------------------------------------------------------------------------
+
+## Distributional Shift
+
+| Function | Description |
+|------------------------|------------------------------------------------|
+| `run_distributional_shift()` | Compares posterior samples using supervised classification. |
+| `summary()` | Summarizes classification performance and diagnostic statistics. |
+| `plot()` | Visualizes classifier performance and distributional separation. |
+
+------------------------------------------------------------------------
+
+## Shared Utilities
+
+| Function | Description |
+|----------------------|--------------------------------------------------|
+| `make_test_functions()` | Validates and packages user-defined scalar test functions. |
+| `ranks_to_sbc_results()` | Converts recomputed ranks into an SBC-compatible object for plotting. |
+
+# Variable-Dimension Samplers (RJMCMC)
+
+Some Bayesian samplers produce parameter vectors whose dimension changes during sampling.
+
+Since many validation procedures assume a fixed-dimensional parameter space, these samplers require an additional representation before validation.
+
+## Fixed-dimension embedding
+
+Each posterior draw should be embedded into a fixed-dimensional representation corresponding to the largest model considered.
+
+For example,
+
+``` text
+Maximum dimension = 5
+
+Model k = 2
+
+(theta1, theta2)
+
+↓
+
+(theta1, theta2, NA, NA, NA)
+```
+
+Inactive parameters should be padded using a consistent placeholder (typically `NA`).
+
+Users may also include additional variables such as
+
+- the current model dimension,
+- indicator variables describing which parameters are active,
+- any other quantities needed for downstream diagnostics.
+
+Once embedded into a fixed-dimensional representation, the resulting samples can be analyzed using the standard **bayescheckr** workflow.
+
+------------------------------------------------------------------------
+
+# Recommended Validation Workflow
+
+Although each diagnostic can be used independently, we recommend combining multiple validation methods.
+
+A typical workflow is
+
+``` text
+Prior sampler
+      │
+      ▼
+Likelihood sampler
+      │
+      ▼
+Posterior sampler
+      │
+      ▼
+ Simulation-Based Calibration
+      │
+      ▼
+ Geweke Joint Test
+      │
+      ▼
+ Distributional Shift
+```
+
+add statement here

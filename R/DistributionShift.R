@@ -225,7 +225,7 @@ tabulate_classifier_tests <- function(data_input, #a dataframe or list
   }
 
   else {
-    data_features <- ... [Claude - fill in here]
+    data_features <- NULL #... [Claude - fill in here]
   }
 
   return(list(t_statistic = data_tstat,

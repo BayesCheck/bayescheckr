@@ -33,66 +33,6 @@ prior_sampler <- function(prior_hyper_params) {
     sigmasq = 1 / rgamma(1, a0, rate = b0)
   )
 }
-<<<<<<< HEAD
-=======
-
-#---------------------------------------------------------------
-#---------------------------------------------------------------
-likelihood_sampler <- function(n, theta, prior_hyper_params = NULL) {
-  
-  mu <- theta[1]
-  sigma2 <- theta[2]
-  
-  y <- rnorm(n, mu, sqrt(sigma2))
-  
-  return(y)
-}
-
-#---------------------------------------------------------------
-#---------------------------------------------------------------
-posterior_sampler <- function(n_draws, y, prior_hyper_params,
-                              init = c(mean(y), var(y))) {
-
-  a0 <- prior_hyper_params$a0
-  b0 <- prior_hyper_params$b0
-  mu0 <- prior_hyper_params$mu0
-  v20 <- prior_hyper_params$v20
-  n <- length(y)
-
-  # preallocate storage
-  THETA <- matrix(0, nrow = n_draws, ncol = length(init))
-  
-  # initialize
-  theta <- init
-
-  for(s in 1:n_draws){
-    
-    # draw mean given variance and data
-    
-    v2n = 1 / (1/v20 + n/theta[2]) 
-    mun = v2n * (mu0/v20 + sum(y)/theta[2])
-    
-    theta[1] <- rnorm(1, mun, sqrt(v2n))
-    
-    # draw variance given mean and data
-    
-    an = a0 + n/2
-    bn = b0 + sum((y - theta[1])^2) / 2
-    
-    theta[2] <- 1 / rgamma(1, shape = an, rate = bn)
-    
-    # store the latest draw in the sth row of the THETA matrix
-    
-    THETA[s, ] <- theta
-    
-  }
-  
-  colnames(THETA) <- c("mu", "sigma2")
-  return(THETA)
-}
-
-
->>>>>>> ee00efcbd331ceded1f3b33f856f890e3bdabdbc
 ```
 
 ```{r}

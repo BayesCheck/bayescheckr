@@ -1,22 +1,4 @@
-<<<<<<< HEAD
 .make_generator_single <- function(prior_sampler, likelihood_sampler,
-=======
-.make_generator_single <- function(prior_sampler, likelihood_sampler, n_obs,
-                                   prior_hyper_params) {
-  function() {
-    theta <- prior_sampler(prior_hyper_params)
-    y <- likelihood_sampler(n_obs, theta, prior_hyper_params)
-
-    list(
-      variables = as.list(theta),
-      generated = list(y = y,
-                       n = n_obs)
-    )
-  }
-}
-
-.make_generator_single_testfns <- function(prior_sampler, likelihood_sampler,
->>>>>>> ee00efcbd331ceded1f3b33f856f890e3bdabdbc
                                            n_obs, prior_hyper_params, test_fns) {
   function() {
     theta <- prior_sampler(prior_hyper_params)
@@ -67,13 +49,8 @@ run_sbc <- function(prior_sampler,
   if (is.null(names(theta_test)) || any(names(theta_test) == ""))
     stop("prior_sampler must return a *named* list: every element needs a name.")
 
-<<<<<<< HEAD
 
-  # ---- validate likelihood_sampler output ----
-  y_test <- likelihood_sampler(n_obs, theta_test)
-=======
   y_test <- likelihood_sampler(n_obs, theta_test, prior_hyper_params)
->>>>>>> ee00efcbd331ceded1f3b33f856f890e3bdabdbc
   if (!is.numeric(y_test) && !is.matrix(y_test) && !is.list(y_test))
     stop("likelihood_sampler must return a numeric vector, matrix, or list.")
 

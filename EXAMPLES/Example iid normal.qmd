@@ -33,6 +33,8 @@ p(\mu \mid \sigma^2,\,y)
 p(\sigma^2 \mid \mu, \, y)
 $$
 
+After implementing this posterior sampler, we use the functions in our package `bayescheckr` to validate them by Geweke's and SBC's frameworks.
+
 ## Implement samplers
 
 Add our samplers:

@@ -172,6 +172,147 @@
 
   )
 }
+
+##Trisha's code
+
+#label: load-packages #!pending: need to add these dependencies
+
+library(tidymodels)
+library(tidyverse)
+library(bayescheckr)
+
+#label: make-dataset
+
+#make the dataset - each should have a label with distribution 0 or 1
+# draws from the same distribution so x or z or whatever it's called = draw from dist.
+# then column label = 0 or 1 depending on which set of draws it belongs to
+# shuffle the order of the rows randomly to get the final full dataset to split
+
+alpha <- 0.05
+n <- 5e3
+
+#sampler draws - will eventually add in more complex posterior samplers
+#like sc versus mc geweke draws
+set0 <- rnorm(n/2)
+set1 <- rnorm(n/2)
+
+set0 <- ungroup(geweke_mc_draws(prior_sampler = linreg_prior_sampler,
+                                likelihood_sampler = linreg_likelihood_sampler,
+                                #posterior_sampler = linreg_posterior_sampler,
+                                n_draws = n/2,
+                                n_obs = n_obs,
+                                prior_hyper_params = prior_hyper_params)$wide)
+
+set1 <- ungroup(geweke_sc_draws(prior_sampler = linreg_prior_sampler,
+                                likelihood_sampler = linreg_likelihood_sampler,
+                                posterior_sampler = linreg_posterior_sampler,
+                                n_draws = n/2,
+                                n_obs = n_obs,
+                                prior_hyper_params = prior_hyper_params)$wide)
+
+#wide version of Geweke draw outputs
+
+#combine the draws into dataframe
+
+# log_data <- data.frame(z = c(set0, set1),
+#                        label = as.factor(c(rep(0, n/2), rep(1, n/2)))
+#                        )
+
+log_data <- bind_rows(set0, set1, .id = "label") |>
+  mutate(label = as.factor(as.numeric(label) - 1)) |>
+  select(-sim_id)
+
+log_data <- log_data[sample(nrow(log_data)), ] #shuffle rows
+
+#label: split-dataset
+
+set.seed(701) #make this a parameter
+log_split <- initial_split(log_data, prop = 0.8, #make this a parameter
+                           strata = label)
+
+data_tr <- training(log_split)
+data_te <- testing(log_split)
+n_te <- nrow(data_te)
+
+#label: train-logreg
+
+#fit the model
+log_fit <- logistic_reg() |>
+  #fit(label ~ z, data = data_tr)
+  fit(label ~ ., data = data_tr)
+
+#display tibble
+tidy(log_fit)
+
+#test-logreg-and-test-statistic
+
+data_aug <- data_te |>
+  mutate(prob_label1 = predict(log_fit,
+                               new_data = data.frame(data_te),
+                               type = "prob")$.pred_1
+  ) |>
+  mutate(indicator_inner = as.numeric(prob_label1 > 0.5)) |>
+  mutate(indicator_outer = as.numeric(indicator_inner == label))
+#make this robust to any kind of classifier output
+#all you need are 2 columns - prob(label = 1) and then actual label
+#need to add in model accuracy and feature importance analysis - could this reveal flawed dependencies in s & theta?
+
+#tibble(data_aug) #display
+
+data_aug |>
+  summarize(t_stat = mean(indicator_outer, na.rm = TRUE), #get t-statistic
+            p_value = 2*(1 - pnorm(abs(t_stat - 0.5) + 0.5, #get p-value
+                                   mean = 0.5,
+                                   sd = sqrt(1/(4*n_te))
+            )),
+            alpha = alpha, #display significance level #make alpha a parameter
+            h0 = ifelse(p_value <= alpha, "Reject", "Fail to Reject")
+  )
+
+
+#input: output of classifier run on testing data - need real labels and the prob(label1)
+#param: data_input = the data object from the classifier
+#param: correct_label = name of the column that's the label (e.g., here, label)
+#param: label_prob = name of column with probability of label 1 (here, prob_label1)
+#param: alpha = significance level desired
+#param: model_fit = log_fit (if a GLM) that we use to get feature importance calcs
+#param: is_glm = used to determine type of feature importance (glm yes/no)
+
+tabulate_classifier_tests <- function(data_input, #a dataframe or list
+                                      correct_label, #a string
+                                      label_prob, #a string
+                                      alpha = 0.05, #a number: sig. level
+                                      model_fit = NULL, #log_fit or some other
+                                      is_glm #a logical: TRUE/FALSE
+                                      ) {
+
+  n_te <- nrow(data_input)
+
+  #get the C2ST test statistic
+  data_tstat <- data_input |>
+    mutate(correct_label = .data[[correct_label]],
+           label_prob = .data[[label_prob]],
+           indicator_inner = label_prob > 0.5,
+           indicator_outer = as.numeric(indicator_inner == correct_label)) |>
+    summarize(t_stat = mean(indicator_outer, na.rm = TRUE), #t-statistic
+              p_value = 2*(1 - pnorm(abs(t_stat - 0.5) + 0.5, #2-sided p-value
+                                     mean = 0.5,
+                                     sd = sqrt(1/(4*n_te))
+              )),
+              alpha = alpha, #significance level
+              h0 = ifelse(p_value <= alpha, "Reject", "Fail to Reject")
+    )
+
+  #add the feature importance
+  data_features <- data.frame(feature = tidy(model_fit)$term,
+                              z_score = tidy(model_fit)$statistic,
+                              p_value = tidy(model_fit)$p.value)
+
+  #return t-stat and feature importance dataframes together
+  return(list(t_statistic = data_tstat,
+       feature_importance = data_features))
+}
+
 # ------------------------------------------------------------------------------
 # Method 2 — divergence metrics
 # ------------------------------------------------------------------------------

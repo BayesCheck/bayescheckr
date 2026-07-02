@@ -205,11 +205,9 @@ run_geweke <- function(prior_sampler,
   theta_test <- prior_sampler(prior_hyper_params)
 
   if (is.null(test_fns)) {
-    if (!is.numeric(theta_test))
-      stop("prior_sampler must return a numeric vector.")
     if (is.null(names(theta_test)) || any(names(theta_test) == ""))
-      stop("prior_sampler must return a named numeric vector. ",
-           "e.g. return(c(mu = mu, sigmasq = sigma2))")
+      stop("prior_sampler must return a list or named numeric vector. ",
+           "e.g. return(list(mu = mu, sigmasq = sigma2))")
     }
 
   # new check for likelihood_sampler

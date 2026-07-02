@@ -24,7 +24,8 @@ Imports:
     mvtnorm,
     xgboost, 
     cluster,
-    patchwork
+    patchwork,
+    tidymodels
 Remotes:
     hyunjimoon/SBC
 

@@ -172,6 +172,56 @@
 
   )
 }
+
+##Trisha's code
+
+#pending: add package dependencies
+
+library(tidymodels)
+library(tidyverse)
+
+#param: data_input = the data object from the classifier
+#param: correct_label = name of the column that's the label (e.g., here, label)
+#param: label_prob = name of column with probability of label 1 (here, prob_label1)
+#param: alpha = significance level desired
+#param: model_fit = log_fit (if a GLM) that we use to get feature importance calcs
+#param: is_glm = used to determine type of feature importance (glm yes/no)
+
+tabulate_classifier_tests <- function(data_input, #a dataframe or list
+                                      correct_label, #a string
+                                      label_prob, #a string
+                                      alpha = 0.05, #a number: sig. level
+                                      model_fit = NULL, #log_fit or some other
+                                      is_glm #a logical: TRUE/FALSE
+                                      ) {
+
+  n_te <- nrow(data_input)
+
+  #get the C2ST test statistic
+  data_tstat <- data_input |>
+    dplyr::mutate(correct_label = .data[[correct_label]],
+           label_prob = .data[[label_prob]],
+           indicator_inner = label_prob > 0.5,
+           indicator_outer = as.numeric(indicator_inner == correct_label)) |>
+    dplyr::summarize(t_stat = mean(indicator_outer, na.rm = TRUE), #t-statistic
+              p_value = 2*(1 - stats::pnorm(abs(t_stat - 0.5) + 0.5, #2-sided p-value
+                                     mean = 0.5,
+                                     sd = sqrt(1/(4*n_te))
+              )),
+              alpha = alpha, #significance level
+              h0 = ifelse(p_value <= alpha, "Reject", "Fail to Reject")
+    )
+
+  #add the feature importance
+  data_features <- data.frame(feature = parsnip::tidy(model_fit)$term,
+                              z_score = parsnip::tidy(model_fit)$statistic,
+                              p_value = parsnip::tidy(model_fit)$p.value)
+
+  #return t-stat and feature importance dataframes together
+  return(list(t_statistic = data_tstat,
+       feature_importance = data_features))
+}
+
 # ------------------------------------------------------------------------------
 # Method 2 — divergence metrics
 # ------------------------------------------------------------------------------

@@ -99,7 +99,7 @@ geweke_sc_draws <- function(prior_sampler,
     theta <- theta[1, ]
 
     #simulate data given the latest parameter values
-    y <- likelihood_sampler(n_obs, as_theta(theta))
+    y <- likelihood_sampler(n_obs, as_theta(theta), prior_hyper_params)
 
     if (keep_draw(m, n_burn, n_thin)) { #decide whether to save the draw
 
@@ -171,13 +171,15 @@ geweke_mc_draws <- function(prior_sampler,
                       lapply(gen_data$generated, function(g) g$y)) #from Claude
   colnames(y_matrix) <- paste0("y", 1:n_obs)
 
-  wide_matrix <- cbind(theta_matrix, y_matrix)
-
   draws_matrix <- data.frame(gen_data$variables) |>
     dplyr::mutate(sim_id = dplyr::row_number()) |>
     tidyr::pivot_longer(cols = -sim_id,
                         names_to = "variable",
                         values_to = "simulated_value")
+
+  wide_matrix <- draws_matrix |>
+    dplyr::group_by(sim_id) |>
+    tidyr::pivot_wider(names_from = variable, values_from = simulated_value)
 
   direct_draws <- list(draws = draws_matrix,
                        theta = theta_matrix,
@@ -211,7 +213,7 @@ run_geweke <- function(prior_sampler,
     }
 
   # new check for likelihood_sampler
-  y_test <- likelihood_sampler(n_obs, theta_test)
+  y_test <- likelihood_sampler(n_obs, theta_test, prior_hyper_params)
   if (!is.numeric(y_test) && !is.matrix(y_test) && !is.list(y_test))
     stop("likelihood_sampler must return a numeric vector, matrix, or list.")
   if (is.vector(y_test) && !is.list(y_test)) {

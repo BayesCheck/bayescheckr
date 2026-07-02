@@ -154,7 +154,7 @@ geweke_mc_draws <- function(prior_sampler,
 
   gen <- SBC::SBC_generator_function(
     .make_generator_single(prior_sampler, likelihood_sampler,
-                           n_obs, prior_hyper_params, test_fns = NULL)
+                           n_obs, prior_hyper_params)
   )
 
   gen_data <- SBC::generate_datasets(gen, n_draws) # = n_sims? check

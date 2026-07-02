@@ -1,5 +1,20 @@
-.make_generator_single <- function(prior_sampler, likelihood_sampler,
-                                           n_obs, prior_hyper_params, test_fns) {
+# Used by run_geweke (geweke_mc_draws): raw theta draws, no test functions.
+.make_generator_single <- function(prior_sampler, likelihood_sampler, n_obs,
+                                   prior_hyper_params) {
+  function() {
+    theta <- prior_sampler(prior_hyper_params)
+    y     <- likelihood_sampler(n_obs, theta, prior_hyper_params)
+    list(
+      variables = as.list(theta),
+      generated = list(y = y,
+                       n = n_obs)
+    )
+  }
+}
+
+# Used by run_sbc: variables are test-function evaluations of the prior draw.
+.make_generator_single_test_fns <- function(prior_sampler, likelihood_sampler,
+                                            n_obs, prior_hyper_params, test_fns) {
   function() {
     theta <- prior_sampler(prior_hyper_params)
     y     <- likelihood_sampler(n_obs, theta, prior_hyper_params)
@@ -65,8 +80,8 @@ run_sbc <- function(prior_sampler,
 
   # ---- generator ----
   generator <- SBC::SBC_generator_function(
-    .make_generator_single(prior_sampler, likelihood_sampler, n_obs,
-                           prior_hyper_params, test_fns)
+    .make_generator_single_test_fns(prior_sampler, likelihood_sampler, n_obs,
+                                    prior_hyper_params, test_fns)
   )
 
   dataset <- SBC::generate_datasets(generator, n_sims)

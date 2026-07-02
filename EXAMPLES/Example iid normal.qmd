@@ -16,7 +16,22 @@ devtools::load_all()
 ```
 ## Problem setup
 
-iid normal bla bla bla (fill in later!)
+This toy example is the iid normal, with the model being `n` iid draws:
+$$
+y_i \sim \text{N}(\mu, \,\sigma^2)
+$$
+With priors:
+$$
+\mu \sim \text{N}(\mu_0,\,v^2_0)
+\newline
+\sigma^2 \sim \text{IG}(a_0,\,b_0)
+$$
+Let $\theta = \{\mu,\,\sigma^2\}$ represent the model's unobservables. We cannot compute the posterior distribution, $p(\theta \mid y)$, directly. So we approximate it via Gibbs sampling, ie, sampling from the full conditionals:
+$$
+p(\mu \mid \sigma^2,\,y)
+\newline
+p(\sigma^2 \mid \mu, \, y)
+$$
 
 ## Implement samplers
 
@@ -36,7 +51,7 @@ prior_sampler <- function(prior_hyper_params) {
 ```
 
 ```{r}
-likelihood_sampler <- function(n_obs, theta) {
+likelihood_sampler <- function(n_obs, theta, prior_hyper_params) {
   
   rnorm(n_obs, theta$mu, sqrt(theta$sigmasq))
   

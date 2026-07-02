@@ -99,7 +99,7 @@ Set hyper-parameters and initialize other values of interest:
 
 prior_hyper_params <- list(a0 = 1, b0 = 1, mu0 = 0, v20 = 1)
 
-n_draws <- 5e4
+n_draws <- 5e3
 n_obs <- 10
 ```
 

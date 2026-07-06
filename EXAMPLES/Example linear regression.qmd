@@ -148,12 +148,19 @@ posterior_sampler <- function(n_draws, y, prior_hyper_params,
     THETA[s, ] <- theta
     
   }
-  lapply(seq_len(n_draws), function(s) {
-    
-    beta_list <- setNames(as.list(THETA[s, 1:p]), paste0("beta", 1:p))
-    c(beta_list, list(sigmasq = THETA[s, p + 1]))
   
-  })
+  #print(theta[p+1])
+  
+  # lapply(seq_len(n_draws), function(s) {
+  # 
+  #   beta_list <- setNames(as.list(THETA[s, 1:p]), paste0("beta", 1:p))
+  #   c(beta_list, sigmasq = theta[p + 1])
+  # 
+  # })
+  
+  list(beta1 = THETA[s, 1],
+     beta2   = THETA[s, 2],
+     sigmasq = THETA[s, 3])
 }
 ```
 
@@ -186,16 +193,16 @@ Let's set:
 
 ```{r}
 n_obs <- 5
-n_draws <- 10000
+n_draws <- 500
 ```
 
 The function `run_geweke` creates both direct and Gibbs draws from the joint.
 
 ```{r}
 gibbs_results <- run_geweke(
-  prior_sampler = linreg_prior_sampler,
-  likelihood_sampler = linreg_likelihood_sampler,
-  posterior_sampler = linreg_posterior_sampler,
+  prior_sampler = prior_sampler,
+  likelihood_sampler = likelihood_sampler,
+  posterior_sampler = posterior_sampler,
   n_obs = n_obs,
   n_draws = n_draws,
   n_burn = 1000,
@@ -203,6 +210,8 @@ gibbs_results <- run_geweke(
   prior_hyper_params = prior_hyper_params,
   parallelize = TRUE
 )
+
+gibbs_results$gibbs$wide
 ```
 
 ### Geweke on test functions

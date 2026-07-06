@@ -100,7 +100,7 @@ And finally our Gibbs posterior sampler:
 #| label: posterior-sampler-gibbs
 
 posterior_sampler <- function(n_draws, y, prior_hyper_params, 
-                              init = c(rep(0, p), 1))
+                              init = NULL)
   {
   
   # unpack everything
@@ -117,7 +117,12 @@ posterior_sampler <- function(n_draws, y, prior_hyper_params,
   colnames(THETA) <- c("beta1", "beta2", "sigmasq")
   
   #initialize values
-  theta <- init
+  
+  if (is.null(init)) {
+    theta <- c(rep(0, p), 1)
+  } else {
+    theta <- unlist(init)
+  }
   
   v_0_inv <- solve(v_0)
   X_trans <- t(X)

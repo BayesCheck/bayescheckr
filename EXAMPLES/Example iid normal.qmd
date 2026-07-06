@@ -176,7 +176,8 @@ res <- run_sbc(
   n_obs              = 50,
   n_draws            = 1000,       # ditto
   prior_hyper_params = prior_hyper_params,
-  test_fns           = test_fns
+  test_fns           = test_fns,
+  parallelize = TRUE
 )
 ```
 

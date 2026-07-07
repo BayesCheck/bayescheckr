@@ -29,6 +29,37 @@ as_theta <- function(x) {
   unclass(x)[[name]]
 }
 
+#Notes about inputted samplers:
+
+# Prior sampler — must return a named object (list or named vector)
+# where names() gives parameter names and length() gives parameter count.
+# Recommended pattern: c(setNames(vector_params, names),
+#                        list(scalar_param = value)).
+# Never return an unnamed vector or unnamed list.
+#
+# Likelihood sampler — always include hyperparams function(n_obs,
+#                                                          theta,
+#                                                          prior_hyper_params).
+# Always access params with theta[[name]] or theta[[index]] (double bracket)
+# not single bracket, and unlist(theta[1:p]) for extracting sub-vectors.
+# Never assume theta is purely a vector or purely a list.
+# Must return a plain numeric vector of length n_obs.
+#
+# Posterior sampler — always function(n_draws,
+#                                     y,
+#                                     prior_hyper_params,
+#                                     init = NULL).
+# MUST include an init = NULL for Geweke SC to run, and then in the function
+# AT top of sampler, first line should always be initializing params:
+#   if (is.null(init)) [default] else unlist(init)$param
+# this handles whatever format geweke_sc_draws passes as init.
+# Must return a matrix with n_draws rows, named columns matching names
+# from prior_sampler, and colnames(THETA) set before returning.
+# Never return a list of lists.
+#
+# Test functions - always function(theta, y). Access theta with $ or [[name]].
+# Never use positional indexing like theta[1] since param order can change.
+
 
 #successive conditional: sc
 

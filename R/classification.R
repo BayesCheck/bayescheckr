@@ -176,6 +176,8 @@
 # Only the signature and the .run_influential() call change; everything else
 # (Method 2, message()s, output list) stays the same.
 
+#' run_distributional_shift
+#'
 #' Runs an input classifier to determine whether the two distributions can be determined as different by the machine or not.
 #' Ideally you want 50% accuracy with a uniform feature importance.
 #' In the case of RJMCMC or other sampling methods that output samples in varying dimensions you may have trouble with some classification tools. The solution usualy is to put all samples in a max dimensional matrix and just leave the empty dimentions blank for low dimention samples.

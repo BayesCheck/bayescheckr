@@ -176,6 +176,19 @@
 # Only the signature and the .run_influential() call change; everything else
 # (Method 2, message()s, output list) stays the same.
 
+#' Runs an input classifier to determine whether the two distributions can be determined as different by the machine or not.
+#' Ideally you want 50% accuracy with a uniform feature importance.
+#' In the case of RJMCMC or other sampling methods that output samples in varying dimensions you may have trouble with some classification tools. The solution usualy is to put all samples in a max dimensional matrix and just leave the empty dimentions blank for low dimention samples.
+#' In the case of high dimensional samples (I.E. 15+ dimensions) sometimes your classifier will be unable to work properly, such as SVM. In this case you will need a different classification method. We recommend xgboost.
+#'
+#' @param direct_draws Direct draws from the joint distribution p(y, theta)
+#' @param gibbs_draws Gibbs sampler draws from a simulated joint made up of successive conditional draws
+#' @param classifier The algorithm used for classifying which proportion of the data is from which distribution. Should output a matrix of predictions.
+#' @param train_frac The fraction of draws from your sampler that you want your classifier to train on. The remainder will be tested on for accuracy.
+#' @param n_rounds Used specifically for certain types of classifiers that are iterative, like random forests or xgboost. Its the number of times it itterates.
+#' @param n_perm Used to determine feature importance, does not effect the classifier.
+#' @param alpha Used to bound the P value of the C2ST test on our classifier.
+#' @return returns a list of the form: list(classifier_accuracy = accuracy,c2st = c2st, feature_importance = feature_importance).
 #' @export
 run_distributional_shift <- function(
     direct_draws,

@@ -2,10 +2,7 @@
 % Please edit documentation in R/classification.R
 \name{run_distributional_shift}
 \alias{run_distributional_shift}
-\title{Runs an input classifier to determine whether the two distributions can be determined as different by the machine or not.
-Ideally you want 50\% accuracy with a uniform feature importance.
-In the case of RJMCMC or other sampling methods that output samples in varying dimensions you may have trouble with some classification tools. The solution usualy is to put all samples in a max dimensional matrix and just leave the empty dimentions blank for low dimention samples.
-In the case of high dimensional samples (I.E. 15+ dimensions) sometimes your classifier will be unable to work properly, such as SVM. In this case you will need a different classification method. We recommend xgboost.}
+\title{run_distributional_shift}
 \usage{
 run_distributional_shift(
   direct_draws,

@@ -109,9 +109,9 @@ Get posterior draws by calling `run_geweke()`:
 
 ```{r}
 
-draws <- run_geweke(prior_sampler = prior_sampler,
-                    likelihood_sampler = likelihood_sampler,
-                    posterior_sampler = posterior_sampler,
+draws <- run_geweke(prior_sampler = iidnorm_prior_sampler,
+                    likelihood_sampler = iidnorm_likelihood_sampler,
+                    posterior_sampler = iidnorm_posterior_sampler,
                     n_obs = n_obs, n_draws = n_draws, n_thin = 2,
                     prior_hyper_params = prior_hyper_params)
 ```
@@ -176,7 +176,8 @@ res <- run_sbc(
   n_obs              = 50,
   n_draws            = 1000,       # ditto
   prior_hyper_params = prior_hyper_params,
-  test_fns           = test_fns
+  test_fns           = test_fns,
+  parallelize = TRUE
 )
 ```
 

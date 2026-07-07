@@ -68,7 +68,8 @@ prior_sampler <- function(prior_hyper_params){
   #simulate sigma squared
   sig2 <- 1 / rgamma(1, shape = a_0, rate = b_0)
   
-  return(list(beta1 = beta[1], beta2 = beta[2], sigmasq = sig2)) 
+  beta_list <- setNames(as.list(beta), paste0("beta", seq_along(beta)))
+  return(c(beta_list, list(sigmasq = sig2))) 
 }
 ```
 
@@ -100,7 +101,7 @@ And finally our Gibbs posterior sampler:
 #| label: posterior-sampler-gibbs
 
 posterior_sampler <- function(n_draws, y, prior_hyper_params, 
-                              init = c(rep(0, p), 1))
+                              init = NULL)
   {
   
   # unpack everything
@@ -117,7 +118,12 @@ posterior_sampler <- function(n_draws, y, prior_hyper_params,
   colnames(THETA) <- c("beta1", "beta2", "sigmasq")
   
   #initialize values
-  theta <- init
+  
+  if (is.null(init)) {
+    theta <- c(rep(0, p), 1)
+  } else {
+    theta <- unlist(init)
+  }
   
   v_0_inv <- solve(v_0)
   X_trans <- t(X)
@@ -142,10 +148,19 @@ posterior_sampler <- function(n_draws, y, prior_hyper_params,
     THETA[s, ] <- theta
     
   }
-  lapply(seq_len(n_draws), function(s)
-    list(beta1   = THETA[s, 1],
-         beta2   = THETA[s, 2],
-         sigmasq = THETA[s, 3]))
+  
+  #print(theta[p+1])
+  
+  # lapply(seq_len(n_draws), function(s) {
+  # 
+  #   beta_list <- setNames(as.list(THETA[s, 1:p]), paste0("beta", 1:p))
+  #   c(beta_list, sigmasq = theta[p + 1])
+  # 
+  # })
+  
+  list(beta1 = THETA[s, 1],
+     beta2   = THETA[s, 2],
+     sigmasq = THETA[s, 3])
 }
 ```
 
@@ -178,7 +193,7 @@ Let's set:
 
 ```{r}
 n_obs <- 5
-n_draws <- 10000
+n_draws <- 500
 ```
 
 The function `run_geweke` creates both direct and Gibbs draws from the joint.
@@ -195,6 +210,8 @@ gibbs_results <- run_geweke(
   prior_hyper_params = prior_hyper_params,
   parallelize = TRUE
 )
+
+gibbs_results$gibbs$wide
 ```
 
 ### Geweke on test functions

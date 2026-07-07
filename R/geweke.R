@@ -1,4 +1,4 @@
-#geweke.R
+#geweke.R - MATRIX FORM
 
 #inputs: the huge object outputted by simulate.R
 
@@ -67,6 +67,7 @@ geweke_sc_draws <- function(prior_sampler,
 
   n_params <- length(prior_draw)
   varnames <- names(prior_draw)
+  #print(varnames)
   n_row <- n_params * saved_draws #num params x num saved simulations
 
   #preallocate storage for all of the draws
@@ -95,7 +96,8 @@ geweke_sc_draws <- function(prior_sampler,
                                y = y,
                                prior_hyper_params = prior_hyper_params,
                                init = theta)
-    theta <- unlist(theta[[1]])
+    colnames(theta) <- varnames
+    theta <- theta[1, ]
 
     #simulate data given the latest parameter values
     y <- likelihood_sampler(n_obs, as_theta(theta), prior_hyper_params)
@@ -128,10 +130,10 @@ geweke_sc_draws <- function(prior_sampler,
     ungroup()
 
   #return final object
-  gibbs_draws <- list(draws = draws_matrix,
-                      wide = draws_matrix_wide,
-                      theta = theta_matrix,
-                      y = y_matrix)
+  gibbs_draws <- list(draws = data.frame(draws_matrix),
+                      wide = data.frame(draws_matrix_wide),
+                      theta = data.frame(theta_matrix),
+                      y = data.frame(y_matrix))
 
   return(gibbs_draws)
 }
@@ -182,10 +184,10 @@ geweke_mc_draws <- function(prior_sampler,
     tidyr::pivot_wider(names_from = variable, values_from = simulated_value) |>
     ungroup()
 
-  direct_draws <- list(draws = draws_matrix,
-                       theta = theta_matrix,
-                       y = y_matrix,
-                       wide = wide_matrix)
+  direct_draws <- list(draws = data.frame(draws_matrix),
+                       theta = data.frame(theta_matrix),
+                       y = data.frame(y_matrix),
+                       wide = data.frame(wide_matrix))
 
   return(direct_draws)
 }
@@ -325,13 +327,13 @@ apply_test_functions <- function(direct_draws, gibbs_draws, test_functions) {
 
     direct_test_matrix[, nm] <- as.numeric(sapply(
       seq_len(n_row), function(i) {
-        fn(as_theta(direct_draws$theta[i, ]), as.numeric(direct_draws$y[i, ]))
+        fn(direct_draws$theta[i, ], as.numeric(direct_draws$y[i, ]))
       }
     ))
 
     gibbs_test_matrix[, nm] <- as.numeric(sapply(
       seq_len(n_row), function(i) {
-        fn(as_theta(gibbs_draws$theta[i, ]), as.numeric(gibbs_draws$y[i, ]))
+        fn(gibbs_draws$theta[i, ], as.numeric(gibbs_draws$y[i, ]))
       }
     ))
   }

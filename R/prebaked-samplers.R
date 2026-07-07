@@ -46,9 +46,9 @@ iidnorm_posterior_sampler <- function(n_draws, y, prior_hyper_params,
     THETA[s, ] <- theta
   }
 
-  # convert matrix -> list of named theta-lists (new contract)
-  lapply(seq_len(n_draws), function(s)
-    list(mu = THETA[s, 1], sigmasq = THETA[s, 2]))
+  return(THETA)
+  # need to convert matrix -> list of named theta-lists (new contract)
+
 }
 
 #Simple linear regression model -------
@@ -154,7 +154,8 @@ linreg_posterior_sampler <- function(n_draws, y, prior_hyper_params,
   p <- ncol(X)
   n_obs <- length(y)
   THETA <- matrix(0, nrow = n_draws, ncol = p+1)
-  colnames(THETA) <- c("beta1", "beta2", "sigmasq")
+  #colnames(THETA) <- c("beta1", "beta2", "sigmasq")
+  colnames(THETA) <- c(paste0("beta", 1:p), "sigmasq")
 
   #initialize values
 
@@ -187,12 +188,8 @@ linreg_posterior_sampler <- function(n_draws, y, prior_hyper_params,
     THETA[s, ] <- theta
 
   }
-  lapply(seq_len(n_draws), function(s) {
 
-    beta_list <- setNames(as.list(THETA[s, 1:p]), paste0("beta", 1:p))
-    c(beta_list, list(sigmasq = THETA[s, p + 1]))
-
-  })
+  return(THETA)
 }
 
 # PENDING/TO DO NEXT: Doucet & Primiceri correct implementations

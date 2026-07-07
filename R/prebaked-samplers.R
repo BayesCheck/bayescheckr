@@ -139,6 +139,7 @@ linreg_likelihood_sampler <- function(n_obs, theta, prior_hyper_params){
 #   } )
 # }
 
+#' @export
 linreg_posterior_sampler <- function(n_draws, y, prior_hyper_params,
                               init = NULL)
 {

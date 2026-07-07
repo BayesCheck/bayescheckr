@@ -87,7 +87,8 @@
                              classifier  = NULL,   # <- pluggable
                              train_frac  = 0.8,
                              nrounds     = 100,     # only used by the default xgb classifier
-                             n_perm      = 20) {
+                             n_perm      = 20,
+                             alpha       = 0.05) {  # significance level for h0 decision
 
   if (is.null(classifier)) {
     classifier <- .default_glm_classifier()
@@ -97,6 +98,7 @@
   ##-----------------------
   ## Split A / Split B (unchanged)
   ##-----------------------
+
   idx_A <- sample(seq_len(nrow(theta_A)), floor(train_frac * nrow(theta_A)))
   A_train <- theta_A[idx_A, , drop = FALSE]
   A_test  <- theta_A[-idx_A, , drop = FALSE]
@@ -123,19 +125,29 @@
   accuracy <- mean(pred == ytest)
 
   ############################################################
-  ## C2ST statistics (unchanged math)
+  ## C2ST statistics
+  ##
+  ## Two-sided, to match tabulate_classifier_tests(): under H0 ("A and B
+  ## come from the same distribution"), accuracy ~ Normal(0.5, 1/(4*n_te)).
+  ## We test |accuracy - 0.5| against that null rather than only the
+  ## one-sided "accuracy > chance" direction, since an accuracy well below
+  ## chance is also evidence against H0 (e.g. a mis-specified or inverted
+  ## classifier) and Trisha's version flags that case too.
   ############################################################
 
   c2st_se     <- sqrt(1 / (4 * n_te))
   c2st_z      <- (accuracy - 0.5) / c2st_se
-  c2st_pvalue <- stats::pnorm(c2st_z, lower.tail = FALSE)
+  c2st_pvalue <- 2 * stats::pnorm(abs(c2st_z), lower.tail = FALSE)
+  c2st_h0     <- ifelse(c2st_pvalue <= alpha, "Reject", "Fail to Reject")
 
   c2st <- list(
     statistic = accuracy,
     n_test    = n_te,
     se_null   = c2st_se,
     z         = c2st_z,
-    p_value   = c2st_pvalue
+    p_value   = c2st_pvalue,
+    alpha     = alpha,
+    h0        = c2st_h0
   )
 
   ############################################################
@@ -171,7 +183,8 @@ run_distributional_shift <- function(
     classifier  = NULL,
     train_frac  = 0.8,
     nrounds     = 100,
-    n_perm      = 20
+    n_perm      = 20,
+    alpha       = 0.05
 ) {
 
   theta_A  <- direct_draws$theta
@@ -182,7 +195,7 @@ run_distributional_shift <- function(
     stop("direct_draws$theta and gibbs_draws$theta must have the same column names.")
   }
 
-  message("Method 1: training A-vs-B classifier ...")
+  message("Training A-vs-B classifier ...")
 
   m1 <- .run_influential(
     theta_A,
@@ -191,7 +204,8 @@ run_distributional_shift <- function(
     classifier = classifier,
     train_frac = train_frac,
     nrounds    = nrounds,
-    n_perm     = n_perm
+    n_perm     = n_perm,
+    alpha      = alpha
   )
 }
 
@@ -199,19 +213,21 @@ run_distributional_shift <- function(
 # ==============================================================================
 # USAGE EXAMPLES
 # ==============================================================================
-#
+
 # 1) Default behavior -- now plain logistic regression (base R, no extra
 #    dependency required):
 #
 #   result <- run_distributional_shift(direct_draws, gibbs_draws)
-#
+
+
 # 2) Opt back into xgboost (the old default):
 #
 #   result <- run_distributional_shift(
 #     direct_draws, gibbs_draws,
 #     classifier = .default_xgb_classifier(nrounds = 100)
 #   )
-#
+
+
 # 3) Plug in a tidymodels/parsnip spec, e.g. a random forest via ranger
 #    (matches the tidymodels style already used in Trisha's
 #    tabulate_classifier_tests()):
@@ -233,7 +249,8 @@ run_distributional_shift <- function(
 #     direct_draws, gibbs_draws,
 #     classifier = rf_classifier
 #   )
-#
+
+
 # 4) Plug in glmnet (regularized logistic regression):
 #
 #   glmnet_classifier <- list(

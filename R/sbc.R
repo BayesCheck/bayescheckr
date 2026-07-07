@@ -30,8 +30,9 @@
 
 # The main entry point.
 
-#' The call to run SBC on your sampler.
+#' run_sbc
 #'
+#' The call to run SBC on your sampler.
 #' This is done via an external package called SBC.
 #' @param prior_sampler The input for your prior sampler
 #' @param likelihood_sampler The input for your likelihood sampler

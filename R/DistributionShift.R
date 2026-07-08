@@ -187,6 +187,7 @@ library(tidyverse)
 #param: model_fit = log_fit (if a GLM) that we use to get feature importance calcs
 #param: is_glm = used to determine type of feature importance (glm yes/no)
 
+#' @export
 tabulate_classifier_tests <- function(data_input, #a dataframe or list
                                       correct_label, #a string
                                       label_prob, #a string

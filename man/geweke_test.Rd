@@ -2,10 +2,20 @@
 % Please edit documentation in R/geweke.R
 \name{geweke_test}
 \alias{geweke_test}
-\title{Now moving to test functions: difference in means testing (per Geweke 2004)
-and KS testing, for z-score comparison, among other tests}
+\title{geweke_test}
 \usage{
 geweke_test(g_mc, g_sc)
+<<<<<<< HEAD
+}
+\arguments{
+\item{g_mc}{marginal conditional draws}
+
+\item{g_sc}{successive conditional draws}
+}
+\value{
+returns a list: list(direct = direct_test_matrix, gibbs = gibbs_test_matrix), that has the test statistics from all of your test functions.
+=======
+>>>>>>> 4542453894087d025c74ba1bb4084e20748a5c4e
 }
 \description{
 Now moving to test functions: difference in means testing (per Geweke 2004)

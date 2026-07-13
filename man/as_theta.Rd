@@ -4,12 +4,25 @@
 \alias{as_theta}
 \title{the following two functions create the successive-conditional and
 marginal-conditional sampling needed for comparison per John Geweke's 2004
-JASA paper about "Getting it right."}
+JASA paper about "Getting it right."
+as_theta}
 \usage{
 as_theta(x)
+<<<<<<< HEAD
+}
+\arguments{
+\item{x}{input theta}
+}
+\value{
+output theta in the correct format
+}
+\description{
+Makes sure theta is constructed in a way that makes it robust to different access methods
+=======
 }
 \description{
 the following two functions create the successive-conditional and
 marginal-conditional sampling needed for comparison per John Geweke's 2004
 JASA paper about "Getting it right."
+>>>>>>> 4542453894087d025c74ba1bb4084e20748a5c4e
 }

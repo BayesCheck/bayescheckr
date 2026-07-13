@@ -30,8 +30,9 @@
 
 # The main entry point.
 
-#' The call to run SBC on your sampler.
+#' run_sbc
 #'
+#' The call to run SBC on your sampler.
 #' This is done via an external package called SBC.
 #' @param prior_sampler The input for your prior sampler
 #' @param likelihood_sampler The input for your likelihood sampler
@@ -104,14 +105,28 @@ run_sbc <- function(prior_sampler,
   # ---- backend ----
   backend <- SBC::SBC_backend_function(
     func = function(generated) {
-      draws_list <- posterior_sampler(
+      draws_raw <- posterior_sampler(
         n_draws            = n_draws,
         y                  = generated$y,
         prior_hyper_params = prior_hyper_params
       )
-      if (!is.list(draws_list))
-        stop("posterior_sampler must return a list of length n_draws, ",
-             "each element a named theta-list.")
+
+      # normalize posterior output to a list of named theta-lists:
+      #  - matrix with column names -> convert row-by-row (fixed-dim models)
+      #  - list of named theta-lists -> use as-is (e.g. trans-dimensional models)
+      if (is.matrix(draws_raw)) {
+        cn <- colnames(draws_raw)
+        if (is.null(cn) || any(cn == ""))
+          stop("posterior_sampler returned a matrix without full column names. ",
+               "Set colnames(THETA) to the parameter names before returning.")
+        draws_list <- lapply(seq_len(nrow(draws_raw)),
+                             function(s) as.list(draws_raw[s, ]))
+      } else if (is.list(draws_raw)) {
+        draws_list <- draws_raw
+      } else {
+        stop("posterior_sampler must return either a matrix with named ",
+             "columns or a list of named theta-lists.")
+      }
 
       # shape-safe reduction: n_draws x n_tests, guaranteed even when
       # length(test_fns) == 1 (the old t(sapply(...)) silently produced

@@ -187,3 +187,20 @@ SBC::plot_rank_hist(res$sbc_result)
 ```{r}
 SBC::plot_ecdf_diff(res$sbc_result)
 ```
+```{r}
+result <- run_distributional_shift(
+  direct_draws = direct_draws,
+  gibbs_draws  = gibbs_draws,
+  classifier  = .default_xgb_classifier(nrounds = 100)
+)
+
+# ------------------------------------------------------------------------------
+# Results
+# ------------------------------------------------------------------------------
+
+result$classifier_accuracy
+
+result$c2st
+
+result$feature_importance
+```

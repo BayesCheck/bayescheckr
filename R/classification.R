@@ -58,7 +58,7 @@
 # ---- generic permutation feature importance, works for any classifier ------
 
 .permutation_importance <- function(fit, predict_fn, Xtest, ytest,
-                                    baseline_acc, n_perm = 20) {
+                                    baseline_acc, n_perm = 99) {
 
   feature_cols <- colnames(Xtest)
 

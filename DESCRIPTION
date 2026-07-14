@@ -1,6 +1,6 @@
 Package: bayescheckr
 Title: Bayesian Posterior Sampler Validator through Geweke and SBC frameworks
-Version: 0.1.0.4
+Version: 0.1.1
 Authors@R: 
     person(given = "Lance", family = "Browne", role = c("aut", "cre"), email = "lance.browne@duke.edu")
 Author: Lance Browne [aut, cre]

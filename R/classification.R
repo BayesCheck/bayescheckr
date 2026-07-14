@@ -29,8 +29,14 @@
 
 
 # ---- xgboost classifier: opt-in, matches the old default behavior ----------
-
-.default_xgb_classifier <- function(nrounds = 100) {
+#' default_xgb_classifier
+#'
+#' Runs XG boost classifier instead of the default logistic regression.
+#'
+#' @param nrounds How many "cuts" XGBoost.
+#' @return returns a list of two functions: train and test.
+#' @export
+default_xgb_classifier <- function(nrounds = 100) {
   list(
     train = function(X, y) {
       dtrain <- xgboost::xgb.DMatrix(as.matrix(X), label = y)

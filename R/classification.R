@@ -146,7 +146,7 @@ default_xgb_classifier <- function(nrounds = 100) {
   c2st_pvalue <- 2 * stats::pnorm(abs(c2st_z), lower.tail = FALSE)
   c2st_h0     <- ifelse(c2st_pvalue <= alpha, "Reject", "Fail to Reject")
 
-  c2st <- list(
+  c2st <- data.frame(
     statistic = accuracy,
     n_test    = n_te,
     se_null   = c2st_se,

@@ -3,6 +3,7 @@
 S3method("$",bcheck_theta)
 export(apply_test_functions)
 export(as_theta)
+export(default_xgb_classifier)
 export(doucet_build_D)
 export(doucet_inner_update)
 export(doucet_likelihood_sampler)

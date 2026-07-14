@@ -29,8 +29,14 @@
 
 
 # ---- xgboost classifier: opt-in, matches the old default behavior ----------
-
-.default_xgb_classifier <- function(nrounds = 100) {
+#' default_xgb_classifier
+#'
+#' Runs XG boost classifier instead of the default logistic regression.
+#'
+#' @param nrounds How many "cuts" XGBoost.
+#' @return returns a list of two functions: train and test.
+#' @export
+default_xgb_classifier <- function(nrounds = 100) {
   list(
     train = function(X, y) {
       dtrain <- xgboost::xgb.DMatrix(as.matrix(X), label = y)
@@ -58,7 +64,7 @@
 # ---- generic permutation feature importance, works for any classifier ------
 
 .permutation_importance <- function(fit, predict_fn, Xtest, ytest,
-                                    baseline_acc, n_perm = 20) {
+                                    baseline_acc, n_perm = 99) {
 
   feature_cols <- colnames(Xtest)
 
@@ -140,7 +146,7 @@
   c2st_pvalue <- 2 * stats::pnorm(abs(c2st_z), lower.tail = FALSE)
   c2st_h0     <- ifelse(c2st_pvalue <= alpha, "Reject", "Fail to Reject")
 
-  c2st <- list(
+  c2st <- data.frame(
     statistic = accuracy,
     n_test    = n_te,
     se_null   = c2st_se,

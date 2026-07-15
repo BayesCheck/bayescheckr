@@ -15,7 +15,13 @@
 
 # ---- default classifier: plain logistic regression (base R, no extra deps) --
 
-.default_glm_classifier <- function() {
+#' default_glm_classifier
+#'
+#' Runs logistic regression on marginal conditional draws and successive conditional draws.
+#'
+#' @return returns a list of two functions: train and test.
+#' @export
+default_glm_classifier <- function() {
   list(
     train = function(X, y) {
       df <- data.frame(X, .y = y)
@@ -33,7 +39,7 @@
 #'
 #' Runs XG boost classifier instead of the default logistic regression.
 #'
-#' @param nrounds How many "cuts" XGBoost.
+#' @param nrounds How many "cuts" XGBoost does.
 #' @return returns a list of two functions: train and test.
 #' @export
 default_xgb_classifier <- function(nrounds = 100) {

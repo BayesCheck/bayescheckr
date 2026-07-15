@@ -7,7 +7,7 @@
 default_xgb_classifier(nrounds = 100)
 }
 \arguments{
-\item{nrounds}{How many "cuts" XGBoost.}
+\item{nrounds}{How many "cuts" XGBoost does.}
 }
 \value{
 returns a list of two functions: train and test.

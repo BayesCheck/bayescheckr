@@ -214,8 +214,8 @@ run_distributional_shift <- function(
     alpha       = 0.05
 ) {
 
-  theta_A  <- direct_draws$theta
-  theta_B  <- gibbs_draws$theta
+  theta_A  <- cbind(direct_draws$theta, direct_draws$y)
+  theta_B  <- cbind(gibbs_draws$theta, gibbs_draws$y)
   varnames <- colnames(theta_A)
 
   if (!identical(varnames, colnames(theta_B))) {

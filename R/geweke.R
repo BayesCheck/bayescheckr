@@ -177,7 +177,7 @@ geweke_sc_draws <- function(prior_sampler,
   draws_matrix_wide <- draws_matrix |>
     dplyr::group_by(sim_id) |>
     tidyr::pivot_wider(names_from = variable, values_from = simulated_value) |>
-    ungroup()
+    dplyr::ungroup()
 
   #return final object
   gibbs_draws <- list(draws = data.frame(draws_matrix),
@@ -241,7 +241,7 @@ geweke_mc_draws <- function(prior_sampler,
   wide_matrix <- draws_matrix |>
     dplyr::group_by(sim_id) |>
     tidyr::pivot_wider(names_from = variable, values_from = simulated_value) |>
-    ungroup()
+    dplyr::ungroup()
 
   direct_draws <- list(draws = data.frame(draws_matrix),
                        theta = data.frame(theta_matrix),

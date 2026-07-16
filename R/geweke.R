@@ -146,8 +146,12 @@ geweke_sc_draws <- function(prior_sampler,
                                y = y,
                                prior_hyper_params = prior_hyper_params,
                                init = theta)
-    colnames(theta) <- varnames
-    theta <- theta[1, ]
+    if (is.matrix(theta)) {
+      theta <- theta[1, ]
+      names(theta) <- varnames
+    } else {
+      theta <- unlist(theta[[1]])
+    }
 
     #simulate data given the latest parameter values
     y <- likelihood_sampler(n_obs, as_theta(theta), prior_hyper_params)

@@ -101,7 +101,7 @@ default_xgb_classifier <- function(nrounds = 100) {
                              nrounds     = 100,     # only used by the default xgb classifier
                              n_perm      = 20,
                              alpha       = 0.05,
-                             dist        = "Normal") {  # significance level for h0 decision
+                             dist        = "normal") {  # significance level for h0 decision
 
   if (is.null(classifier)) {
     classifier <- default_glm_classifier()
@@ -215,7 +215,7 @@ run_distributional_shift <- function(
     nrounds     = 100,
     n_perm      = 20,
     alpha       = 0.05,
-    dist        = "Normal"
+    dist        = "normal"
 ) {
 
   theta_A  <- cbind(direct_draws$theta, direct_draws$y)

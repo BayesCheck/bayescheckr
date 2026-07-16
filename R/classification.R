@@ -150,9 +150,9 @@ default_xgb_classifier <- function(nrounds = 100) {
 
   c2st_se     <- sqrt(1 / (4 * n_te))
   c2st_z      <- (accuracy - 0.5) / c2st_se
-  c2st_pvalue <- if (dist == "Normal") 2 * stats::pnorm(abs(c2st_z),
+  c2st_pvalue <- if (dist == "normal") 2 * stats::pnorm(abs(c2st_z),
                                                         lower.tail = FALSE)
-  else if (dist == "t") 2*stats::pt(c2st_z, df = 2, lower.tail = FALSE)
+  else if (dist == "t") 2*stats::pt(c2st_z, df = 5, lower.tail = FALSE)
   c2st_h0     <- ifelse(c2st_pvalue <= alpha, "Reject", "Fail to Reject")
 
   c2st <- data.frame(

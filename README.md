@@ -349,11 +349,13 @@ cat(sprintf(
 ))
 ```
 
-more words
+You can use the $ operator to access the c2st dataframe outputted by `run_distributional_shift()`. It gives results for the test *overall*; if you are interested in determining the relative importance of any one parameter in a model, access the feature importance data frame instead.
 
 ``` r
-print(tabulate_shift_divergences(shift_result))
+c2st <- shift_result$feature_importance
+head(c2st)
 ```
+In this data frame, each row represents one parameter (e.g., “beta1” or “mu”) and lists specific statistics for each: `observed_drop` and a corresponding `p_value` ($H_0$: the parameter does not contribute much to classifier accuracy). `observed_drop` is computed as the drop in classifier accuracy from leaving each parameter out iteratively; this determines each parameter’s relative influence. A high `observed_drop` and low `p_value` might indicate that a parameter is sampled incorrectly in the posterior, nudging a researcher to start their debugging there.   
 
 ------------------------------------------------------------------------
 

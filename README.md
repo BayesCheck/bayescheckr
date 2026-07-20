@@ -238,6 +238,8 @@ automatically distributes independent simulations across available workers.
 
 # Geweke Joint-Distribution Test
 
+NOTE TO SELF TRISHA: make all Geweke functions intake draws in the same format (either one object or 2, the gibbs/direct draws separately)
+
 The Geweke test compares two different sampling procedures that should produce draws from the same joint distribution ($p(\theta, y)$).
 
 If the posterior sampler is implemented correctly, both procedures generate samples from the same stationary distribution, even though they obtain those samples in different ways.
@@ -518,6 +520,7 @@ t-SNE is one option among several. `Xtest` can be passed to any dimensionality-r
 | `default_xgb_classifier()` | XG Boost classifier - input as `classifier` argument in `run_distributional_shift()`. |
 | `summary()` | Summarizes classification performance and diagnostic statistics. |
 | `plot()` | Visualizes classifier performance and distributional separation. |
+| `fit_c2st_for_viz()` | Creates list object for visualization. | 
 
 ------------------------------------------------------------------------
 
@@ -583,4 +586,17 @@ Geweke Joint Test
       │
       ▼
 Distributional Shift
+      │
+      ▼
+Visualization
+ 
+```
+
+Thank you for engaging with our package! We hope it helps you in your endeavors.
+If you have questions, feedback, or encounter any issues, we would love to hear and help you out! Please contact:
+
+```text
+rafael.mautner@duke.edu
+trisha.iyer@duke.edu
+lance.browne@duke.edu
 ```

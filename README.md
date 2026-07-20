@@ -410,16 +410,59 @@ On the other hand, classification accuracy substantially above chance suggests a
 While this does not identify the source of the discrepancy, it provides strong evidence that the candidate sampler differs from the reference distribution.
 
 ------------------------------------------------------------------------
-
 # Visualization
 
 Besides the SBC plots and Geweke's QQ plots, all diagnostics so far are numerical, including all of those pertaining to distributional shift.
 
-insert more words about visualizations offered - Geweke plots, SBC plots, t-SNE.
+Numerical summaries can be difficult to interpret directly, particularly for models with many parameters or a trans-dimensional structure (e.g. reversible-jump samplers), where the raw parameter space cannot be inspected visually. In these settings, projecting the classifier's input space into two dimensions can make patterns of separation between direct and Gibbs draws visible that would otherwise only be apparent from a table of numbers.
 
-Geweke plots: quantile points should be on the y = x line. 
-SBC plots: histograms uniform, lines in footballs
-t-SNE: well mixed blue and red points, no concentrations or clustering
+## `fit_c2st_for_viz()`
+
+`fit_c2st_for_viz()` refits a classifier on a train/test split of `direct_draws$theta` and `gibbs_draws$theta`, mirroring the internal logic of `run_distributional_shift()`, but returns the fitted classifier, the held-out feature matrix, the true labels, and the predicted probabilities rather than only the summary statistics.
+
+This function is provided for computational convenience — it avoids re-implementing the same train/test split and classifier call already used internally by `run_distributional_shift()`. It does not introduce a dependency on C2ST or on any classifier for the purpose of visualization itself: the resulting embeddings below are generated directly from the held-out `theta` values and the true draw labels (`ytest`), both of which are available directly from Geweke's output, independent of whether a classifier is ever fit. 
+`fit_c2st_for_viz()` is used only as a convenient source of an already-split test set.
+
+```r
+fit_c2st_for_viz(theta_A, theta_B, classifier = NULL, train_frac = 0.8, seed = NULL)
+```
+
+**Returns** a list with:
+
+- `fit` — the fitted classifier object.
+- `Xtest` — the held-out feature data.frame (theta values from the test split).
+- `ytest` — true labels for the test set (`0` = direct, `1` = gibbs).
+- `p_test` — the classifier's predicted probability of class 1 (gibbs) for each test row.
+
+`Xtest` and `ytest` are the two elements needed to generate a visualization; `fit` and `p_test` are made available for optional diagnostics such as coloring an embedding by predicted probability instead of true source, or plotting a decision boundary.
+
+## Example: t-SNE embedding
+
+```r
+library(Rtsne)
+library(ggplot2)
+
+viz <- fit_c2st_for_viz(direct_draws$theta, gibbs_draws$theta,
+                        classifier = default_xgb_classifier(), seed = 1)
+
+X_mat <- as.matrix(viz$Xtest)
+
+tsne_out <- Rtsne(X_mat, dims = 2, perplexity = 30, check_duplicates = FALSE)
+
+tsne_df <- data.frame(
+  tsne1 = tsne_out$Y[, 1],
+  tsne2 = tsne_out$Y[, 2],
+  source = factor(viz$ytest, levels = c(0, 1), labels = c("direct", "gibbs"))
+)
+
+ggplot(tsne_df, aes(x = tsne1, y = tsne2, color = source)) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  theme_minimal()
+```
+
+Under a correctly implemented sampler, direct and Gibbs draws should be visually indistinguishable in the embedding. Visible clustering by `source` indicates a distributional shift between the two draw sets, consistent with a C2ST rejection.
+
+t-SNE is one option among several. `Xtest` can be passed to any dimensionality-reduction or visualization method that accepts a numeric matrix — UMAP and PaCMAP are two alternatives worth considering, particularly for models with many parameters, since results can vary by technique and comparing more than one is recommended when computationally feasible.
 
 ------------------------------------------------------------------------
 

@@ -316,7 +316,9 @@ No single diagnostic should be interpreted in isolation. The combination of grap
 
 #  Validation by classification
 
-Words
+The classifier 2-sample test (C2ST), another validation method, operates on the same principle as the Geweke comparison method: if the posterior sampler is correct, then draws from it should come from the same distribution as joint direct draws (using marginal-conditional samplers). A classifier trained on the two sets of draws should then ideally be unable to tell them apart and thus have around 50% classification accuracy. Further, no parameter should significantly contribute to the classifier’s performance if all are sampled and updated correctly. 
+
+Our package offers a single method, `run_distributional_shift()`, that generates the draws to compare, runs a classifier of your choice, and outputs the classifier accuracy and the relative contributions of each parameter (feature importance) to that accuracy. 
 
 ------------------------------------------------------------------------
 
@@ -331,7 +333,13 @@ shift_result <- run_distributional_shift(
 )
 ```
 
-words
+`run_distributional_shift()` trains a classifier to distinguish direct draws from Gibbs draws, using `theta` and `y`jointly. It splits each set into a training and testing group according to `train_frac`, fits the specified `classifier` (logistic regression set as default; xgboost is available for high-dimensional data), and evaluates classification accuracy on the held-out testing set. It returns a list with three elements: 
+
+- `classifier_accuracy`: test-set accuracy; 
+- `c2st`: a list containing the test statistic, sample size, standard error under the null, z-score, p-value, and Reject/Fail-to-Reject decision at the given `alpha`; 
+- `feature_importance`: a data frame of per-feature permutation importance, giving each feature's observed accuracy drop and permutation-based p-value. 
+
+Under a correctly implemented sampler, `classifier_accuracy` should sit close to 0.5 and the C2ST p-value should exceed `alpha`; a low p-value indicates the classifier can distinguish the direct draws from the Gibbs reliably well, which is potential evidence of an erroneous sampler. 
 
 ``` r
 c2st <- shift_result$influential$c2st
@@ -349,18 +357,18 @@ print(tabulate_shift_divergences(shift_result))
 
 ------------------------------------------------------------------------
 
-## Supported classifiers: Not True but might be a good idea to make it do this
+## Supported classifiers
 
-Several classification algorithms are available.
+Two classification algorithms are currently available, with additional methods planned.
 
-| Method | Typical use |
-|--------------------|----------------------------------------------------|
-| `"logistic"` | Fast baseline diagnostic |
-| `"random_forest"` | Captures nonlinear interactions |
-| `"xgboost"` | High predictive accuracy for subtle distributional differences |
-| `"svm"` | Effective for complex decision boundaries |
+| Method            | Typical use                                                     | Status             |
+|-------------------|------------------------------------------------------------------|--------------------|
+| `"logistic"`      | Fast baseline diagnostic                                        | Available          |
+| `"xgboost"`       | High predictive accuracy for subtle distributional differences  | Available           |
+| `"random_forest"` | Captures nonlinear interactions                                 | Not yet available  |
+| `"svm"`           | Effective for complex decision boundaries                       | Not yet available  |
 
-Different classifiers may detect different types of posterior discrepancies. When computationally feasible, comparing several classifiers is recommended.
+Different classifiers may detect different types of posterior discrepancies. When computationally feasible, comparing several classifiers is recommended. Any classifier can be supplied directly via the `classifier` argument by implementing the `train`/`predict` interface described below, independent of this table.
 
 ------------------------------------------------------------------------
 
@@ -376,6 +384,12 @@ While this does not identify the source of the discrepancy, it provides strong e
 
 ------------------------------------------------------------------------
 
+# Visualization
+
+Besides the SBC plots and Geweke's QQ plots, all diagnostics so far are numerical, including all of those pertaining to distributional shift. 
+
+------------------------------------------------------------------------
+
 # Function Reference
 
 ## Simulation-Based Calibration
@@ -383,11 +397,11 @@ While this does not identify the source of the discrepancy, it provides strong e
 | Function | Description |
 |---------------------|---------------------------------------------------|
 | `run_sbc()` | Runs Simulation-Based Calibration and returns a `bayescheckr_sbc` object. |
-| `recompute_ranks()` | Recomputes SBC ranks using user-defined test functions. |
 | `rank_mean_test()` | Tests whether the empirical rank mean equals its theoretical value. |
 | `rank_variance_test()` | Tests whether the empirical rank variance matches the uniform expectation. |
 | `rank_ks_test()` | Performs a Kolmogorov–Smirnov test for rank uniformity. |
 | `rank_kl_divergence()` | Computes the KL divergence between empirical and uniform rank distributions. |
+
 
 ------------------------------------------------------------------------
 
@@ -407,6 +421,8 @@ While this does not identify the source of the discrepancy, it provides strong e
 | Function | Description |
 |------------------------|------------------------------------------------|
 | `run_distributional_shift()` | Compares posterior samples using supervised classification. |
+| `default_glm_classifier()` | Logistic regression classifier - set as default in `run_distributional_shift()`. |
+| `default_xgb_classifier()` | XG Boost classifier - input as `classifier` argument in `run_distributional_shift()`. |
 | `summary()` | Summarizes classification performance and diagnostic statistics. |
 | `plot()` | Visualizes classifier performance and distributional separation. |
 

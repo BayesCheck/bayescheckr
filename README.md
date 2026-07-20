@@ -64,7 +64,7 @@ my_prior <- function(hyper) {
 # Likelihood sampler
 #----------------------------------------------------------
 
-my_likelihood <- function(n_obs, theta) {
+my_likelihood <- function(n_obs, theta, hyper) {
 
   rnorm(
     n_obs,
@@ -81,7 +81,8 @@ my_likelihood <- function(n_obs, theta) {
 my_posterior <- function(
   ndraws,
   y,
-  prior_hyper_params
+  prior_hyper_params,
+  init = NULL
 ) {
 
   n <- length(y)
@@ -206,64 +207,6 @@ parallelize = TRUE
 automatically distributes independent simulations across available workers.
 
 ------------------------------------------------------------------------
-
-# Test Functions
-
-By default, SBC validates the posterior using the model parameters themselves.
-
-Often, however, implementation errors only appear after nonlinear transformations or in predictive summaries. To detect these problems, **bayescheckr** allows users to define **test functions**, which transform posterior draws into scalar summaries before recomputing SBC ranks.
-
-For example,
-
-``` r
-test_fns <- make_test_functions(
-
-  mu_sq = function(theta, y) {
-
-    theta["mu"]^2
-
-  },
-
-  log_like = function(theta, y) {
-
-    sum(
-
-      dnorm(
-        y,
-        theta["mu"],
-        prior_hyper_params$sigma,
-        log = TRUE
-      )
-
-    )
-
-  }
-
-)
-```
-
-The SBC ranks can then be recomputed using these derived quantities:
-
-``` r
-ranked <- recompute_ranks(
-  result,
-  test_fns
-)
-
-shell <- ranks_to_sbc_results(
-  ranked
-)
-```
-
-Visual diagnostics are generated exactly as before.
-
-``` r
-SBC::plot_rank_hist(shell)
-
-SBC::plot_ecdf_diff(shell)
-```
-
-Using informative test functions often reveals bugs that remain hidden when examining raw parameters alone.
 
 # Geweke Joint-Distribution Test
 

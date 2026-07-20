@@ -118,15 +118,33 @@ my_posterior <- function(
 
 To work well with our package, format the inputs and outputs of the samplers in a certain way. 
 
-The prior: [Trisha fills in]
+The prior: 
+- input: `prior_hyper_params`
+- return: a named object (list or named vector) where `names()` gives parameter names and `length()` gives parameter count.
+Additionally: The example above wraps scalar parameters in a simple list. To include vector parameters, the recommended pattern is as follows: c(setNames(vector_params, names), list(scalar_param = value)).
 
-The likelihood: [Trisha fills in]
+```{r}
+#for parameters beta (a vector) and sigmasq (a scalar)
 
-The posterior: [Trisha fills in]
+beta_list <- setNames(as.list(beta), paste0("beta", seq_along(beta)))
+return(c(beta_list, list(sigmasq = sig2)))
+```
+
+The likelihood: 
+- input: `(n_obs, theta, prior_hyper_params)`
+- return: a plain numeric vector of length n_obs.
+Additionally: Access theta defensively. Use theta[["name"]] or theta[[index]] with a double bracket not single bracket, and `unlist(theta[1:p])` to extract sub-vectors.
+
+The posterior:
+- input: `(n_draws, y, prior_hyper_params, init = NULL)`. The `init` argument allows the posterior to initialize to better and better update points as the MCMC chain converges. First line of the function body should **always be** `theta <- if (is.null(init)) <your_default> else unlist(init)`. 
+- return: a matrix with `n_draws` rows and named columns matching the names from `prior_sampler`.
 
 ## Test functions
 
 Both SBC and Geweke's validation framework only validate on the scalar level. This means validating each model parameter on its own is no issue, but to check the interaction between parameters, we must set up some test functions that transform many parameters into a scalar, for example, multiplying them together.
+
+Test functions must always access parameters within the inputted `theta` using `[["parameter"]]` or `$parameter`.
+
 Our package contains a `make_test_functions` function that makes this process easy and checks if the test functions are valid:
 
 ```{r}

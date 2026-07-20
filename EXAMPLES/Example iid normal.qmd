@@ -1,5 +1,5 @@
 ---
-title: "Example iid normal"
+title: "Example iid normal - start here!"
 format: html
 ---
 set seed first
@@ -150,6 +150,19 @@ tabulate_geweke_tests(list(direct = direct_draws,
                  gibbs = gibbs_draws),
                  test_functions = test_fns)
 ```
+
+Alternatively, use the tests_applied parameter if you ever need to separate the test function application and analysis steps:
+```{r}
+#| label: example-tests-applied-workflow
+#| eval: true
+
+geweke_test_matrix <- apply_test_functions(direct = doucet_results$direct,
+                                           gibbs = doucet_results$gibbs,
+                                           tests_functions = test_fns)
+
+tabulate_geweke_tests(draws = geweke_test_matrix, tests_applied = TRUE)
+```
+
 The output is a table! Cute.
 
 Make some QQ plots:

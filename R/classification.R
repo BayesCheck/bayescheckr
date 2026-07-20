@@ -100,10 +100,11 @@ default_xgb_classifier <- function(nrounds = 100) {
                              train_frac  = 0.8,
                              nrounds     = 100,     # only used by the default xgb classifier
                              n_perm      = 20,
-                             alpha       = 0.05) {  # significance level for h0 decision
+                             alpha       = 0.05,
+                             dist        = "normal") {  # significance level for h0 decision
 
   if (is.null(classifier)) {
-    classifier <- .default_glm_classifier()
+    classifier <- default_glm_classifier()
   }
   stopifnot(is.function(classifier$train), is.function(classifier$predict))
 
@@ -149,7 +150,9 @@ default_xgb_classifier <- function(nrounds = 100) {
 
   c2st_se     <- sqrt(1 / (4 * n_te))
   c2st_z      <- (accuracy - 0.5) / c2st_se
-  c2st_pvalue <- 2 * stats::pnorm(abs(c2st_z), lower.tail = FALSE)
+  c2st_pvalue <- if (dist == "normal") 2 * stats::pnorm(abs(c2st_z),
+                                                        lower.tail = FALSE)
+  else if (dist == "t") 2*stats::pt(c2st_z, df = 5, lower.tail = FALSE)
   c2st_h0     <- ifelse(c2st_pvalue <= alpha, "Reject", "Fail to Reject")
 
   c2st <- data.frame(
@@ -211,7 +214,8 @@ run_distributional_shift <- function(
     train_frac  = 0.8,
     nrounds     = 100,
     n_perm      = 20,
-    alpha       = 0.05
+    alpha       = 0.05,
+    dist        = "normal"
 ) {
 
   theta_A  <- cbind(direct_draws$theta, direct_draws$y)
@@ -232,7 +236,8 @@ run_distributional_shift <- function(
     train_frac = train_frac,
     nrounds    = nrounds,
     n_perm     = n_perm,
-    alpha      = alpha
+    alpha      = alpha,
+    dist       = dist
   )
 }
 

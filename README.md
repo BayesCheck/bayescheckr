@@ -501,6 +501,7 @@ t-SNE is one option among several. `Xtest` can be passed to any dimensionality-r
 | `default_xgb_classifier()` | XG Boost classifier - input as `classifier` argument in `run_distributional_shift()`. |
 | `summary()` | Summarizes classification performance and diagnostic statistics. |
 | `plot()` | Visualizes classifier performance and distributional separation. |
+| `fit_c2st_for_viz()` | Creates list object for visualization. | 
 
 ------------------------------------------------------------------------
 
@@ -559,13 +560,24 @@ Likelihood sampler
 Posterior sampler
       │
       ▼
- Simulation-Based Calibration
+Simulation-Based Calibration
       │
       ▼
- Geweke Joint Test
+Geweke Joint Test
       │
       ▼
- Distributional Shift
+Distributional Shift
+      │
+      ▼
+Visualization
+ 
 ```
 
-add statement here
+Thank you for engaging with our package! We hope it helps you in your endeavors.
+If you have questions, feedback, or encounter any issues, we would love to hear and help you out! Please contact:
+
+```text
+rafael.mautner@duke.edu
+trisha.iyer@duke.edu
+lance.browne@duke.edu
+```

@@ -1,0 +1,525 @@
+---
+title: "Example Reversible Jump Markov Chain Monte Carlo - Andrieu & Doucet (1999)"
+format: html
+---
+
+We have a linear regression model:
+$$
+y_i = x_i ^T \beta + \epsilon_i , \hspace{1cm} \epsilon_i \sim N(0, \sigma^2)
+$$ 
+Our unknown parameters are $\theta = \{\beta, \sigma^2\}$. (Keep in mind $\beta$ is a vector here and it follows a multivariate normal.)
+The prior is given by:
+
+$$
+\beta \sim N_p(\bar{\beta}_0, V_0)
+$$
+
+$$
+\sigma^2 \sim IG(a_0, b_0)
+$$ 
+With hyperparameters $\bar{\beta}_0, V_0, a_0, b_0$.
+
+As before, we use marginal conditionals to approximate the posterior via Gibbs sampling: 
+$$
+\{\beta | \sigma^2, y, X\} \sim N_p \left(\left(V_0 ^{-1}+\frac{X^TX}{\sigma^2}\right)^{-1} \left(V_0^{-1}\beta_0 + \frac{X^T y}{\sigma^2}\right) ,\left(V_0 ^{-1}+\frac{X^TX}{\sigma^2}\right)^{-1}\right)  \newline
+$$ 
+$$
+\{\sigma^2 | \beta, y, X\}\sim IG(a_0+\frac{n}{2}, \frac{1}{2}[\text{SSR}(\beta)]+b_0)
+$$
+This allows us to approximate the posterior for this model. Now onto implementing validation methods using our package.
+
+Load our package:
+
+```{r}
+devtools::load_all()
+```
+
+Hyperparameters are packed into a single object (a list), because they have different dimensions, so this is a better approach than a named vector.
+
+Note that the constant design matrix X (predictor space data) is also included in this list. 
+
+```{r}
+#| label: problem-setup
+
+#set up using same settings as Lance
+
+k_fixed <- 2
+n       <- 64
+i_idx   <- 0:(n - 1)
+
+prior_hyper_params <- list(
+  v0     = 2,     # Jeffreys' prior on sigma^2 (eq. 6)
+  gamma0 = 2,
+  delta2 = 1,      # expected SNR parameter, eq. (7)
+  k      = k_fixed,
+  k_max  = 3,
+  n      = n,
+  i_idx  = i_idx,
+  lambda    = 0.3,         # P(periodogram proposal) in frequency update
+  Lambda = 3,
+  sigma_rw  = 1 / (5*n), # random-walk sd for frequency update
+  n_mcmc_sweeps = 50       # number of full update sweeps per posterior draw
+)
+
+hyper <- prior_hyper_params
+```
+
+Now we code up our samplers to input to the `bayescheckr` functions. Notes for the sampler function formatting: the posterior sampler MUST take an init argument to initialize theta, and the likelihood sampler MUST only take the n_obs and theta arguments. 
+
+We'll first define our inner helper functions:
+
+```{r}
+#| label: define-helper-functions
+
+doucet_build_D <- function(omega_k, n) {
+  k <- length(omega_k)
+
+  i_idx <- 0:(n-1)
+
+  if (k == 0) {
+    return(matrix(0, nrow = n, ncol = 0))
+  }
+
+  D <- matrix(0, nrow = length(i_idx), ncol = 2*k)
+  for (j in seq_len(k)) {
+    D[, 2*j - 1] <- cos(omega_k[j]*i_idx)
+    D[, 2*j]     <- sin(omega_k[j]*i_idx)
+  }
+  return(D)
+}
+
+#' @export
+doucet_yPy <- function(omega_k, y, hyper) {
+  k <- length(omega_k)
+  if (k == 0) return(sum(y^2))
+  D <- doucet_build_D(omega_k, length(y))
+  DtD <- crossprod(D)
+  Mk_inv <- ((hyper$delta2 + 1) / hyper$delta2) * DtD
+  Dty <- crossprod(D, y)
+  sol <- tryCatch(solve(Mk_inv, Dty), error = function(e) NULL)
+  if (is.null(sol)) return(sum(y^2))
+  sum(y^2) - as.numeric(crossprod(Dty, sol))
+}
+
+#' @export
+doucet_inner_update <- function(omega, a, sigma2, y, prior_hyper_params) {
+  hyper <- prior_hyper_params
+  k <- length(omega)
+  n_obs <- length(y)
+  mh_lambda <- 0.3
+  sigma_rw <- 1 / (5 * n_obs)
+
+  # FFT proposal setup (same as before)
+  fft_y <- fft(y)
+  periodogram <- Mod(fft_y)^2
+  Np <- n_obs
+  periodogram <- periodogram[1:Np]
+  freq_grid <- (0:(Np - 1)) * pi / Np
+  period_probs <- periodogram / sum(periodogram)
+
+  propose_fft_freq <- function() {
+    bin <- sample.int(Np, size = 1, prob = period_probs)
+    lo <- freq_grid[bin]
+    hi <- lo + pi / Np
+    runif(1, lo, min(hi, pi))
+  }
+
+  density_fft_freq <- function(w) {
+    bin <- min(Np, max(1, floor(w / (pi / Np)) + 1))
+    period_probs[bin] / (pi / Np)
+  }
+
+  # MH on frequencies (same as before)
+  for (j in seq_len(k)) {
+    omega_minus_j <- omega[-j]
+    u <- runif(1)
+
+    if (u < mh_lambda) {
+      omega_prop <- propose_fft_freq()
+      q_fwd <- density_fft_freq(omega_prop)
+      q_bwd <- density_fft_freq(omega[j])
+    } else {
+      omega_prop <- rnorm(1, mean = omega[j], sd = sigma_rw)
+      if (omega_prop <= 0 || omega_prop >= pi) next
+      q_fwd <- dnorm(omega_prop, mean = omega[j], sd = sigma_rw)
+      q_bwd <- dnorm(omega[j], mean = omega_prop, sd = sigma_rw)
+    }
+
+    omega_cand <- sort(c(omega_minus_j, omega_prop))
+    omega_old <- sort(c(omega_minus_j, omega[j]))
+
+    s_cand <- doucet_yPy(omega_cand, y, hyper)
+    s_old <- doucet_yPy(omega_old, y, hyper)
+
+    log_target_ratio <- ((n_obs + hyper$v0) / 2) *
+      (log(hyper$gamma0 + s_old) - log(hyper$gamma0 + s_cand))
+    log_q_ratio <- log(q_bwd) - log(q_fwd)
+    log_alpha <- log_target_ratio + log_q_ratio
+
+    if (log(runif(1)) < log_alpha) {
+      omega <- omega_cand
+    }
+  }
+
+  # Gibbs (same as before)
+  if (k == 0) {
+    Pky <- sum(y^2)
+    shape_sigma2 <- (hyper$v0 + n_obs) / 2
+    rate_sigma2 <- (hyper$gamma0 + Pky) / 2
+    sigma2 <- 1 / rgamma(1, shape = shape_sigma2, rate = rate_sigma2)
+    a <- numeric(0)
+  } else {
+    D <- doucet_build_D(omega, n_obs)
+    DtD <- crossprod(D)
+    Mk_inv <- ((hyper$delta2 + 1) / hyper$delta2) * DtD
+    Mk <- solve(Mk_inv)
+    m_k <- Mk %*% crossprod(D, y)
+    P_k <- diag(n_obs) - D %*% Mk %*% t(D)
+    Pky <- as.numeric(t(y) %*% P_k %*% y)
+
+    shape_sigma2 <- (hyper$v0 + n_obs) / 2
+    rate_sigma2 <- (hyper$gamma0 + Pky) / 2
+    sigma2 <- 1 / rgamma(1, shape = shape_sigma2, rate = rate_sigma2)
+    a <- as.vector(MASS::mvrnorm(1, mu = as.numeric(m_k),
+                                 Sigma = sigma2 * Mk))
+  }
+
+  list(omega = omega, a = a, sigma2 = sigma2)
+}
+```
+
+The prior is:
+
+```{r}
+#| label: prior_sampler
+
+prior_sampler <- function(prior_hyper_params) {
+
+  n <- prior_hyper_params$n
+  k_max <- prior_hyper_params$k_max
+  Lambda <- prior_hyper_params$Lambda
+  delta2 <- prior_hyper_params$delta2
+  v0 <- prior_hyper_params$v0
+  gamma0 <- prior_hyper_params$gamma0
+
+  # 1. sample k ~ truncated Poisson on {0, ..., k_max}
+  repeat {
+    k <- rpois(1, Lambda)
+    if (k <= k_max) break
+  }
+
+  # 2. sample omega_k ~ iid Uniform(0, pi), k-length vector
+  if (k > 0) {
+    omega <- runif(k, 0, pi)
+  } else {
+    omega <- numeric(0)
+  }
+
+  # 3. sample sigma2 ~ IG(v0/2, gamma0/2)
+  sigma2 <- 1 / rgamma(1, shape = (v0/2), rate = (gamma0/2))
+
+  # 4. sample a_k | omega_k, sigma2, k ~ N_k(0, delta2 * sigma2 * (D^T D)^{-1})
+  if (k > 0) {
+    D <- doucet_build_D(omega, n = n)
+    DtD_inv <- solve(t(D) %*% D)
+    Sigma_a <- sigma2 * delta2 * DtD_inv #sigma2 value x Sigma matrix described
+    a <- as.vector(mvtnorm::rmvnorm(1,
+                                    mean = rep(0, 2*k), #mu = 0 vector
+                                    sigma = Sigma_a)) #covariance matrix
+  } else {
+    a <- numeric(0) #empty (0) vector
+  }
+
+  # 5. pad to k_max and assemble named vector
+  omega_padded <- rep(NA_real_, k_max)
+  if (k > 0) omega_padded[1:k] <- omega
+
+  a_padded <- rep(NA_real_, 2 * k_max)
+  if (k > 0) a_padded[1:(2 * k)] <- a
+
+  theta <- c(k = k,
+             setNames(omega_padded, paste0("omega", 1:k_max)),
+             setNames(a_padded, paste0("a", 1:(2 * k_max))),
+             sigma2 = sigma2)
+
+  return(theta)
+}
+```
+
+^with minimal modifications to unpack a single `prior_hyper_params` object and to return a named vector instead of unnamed.
+
+Now the likelihood. Note, we must make a wrapper to include X (the data matrix) since our package requires that the likelihood sampler takes in only n / n_obs and theta as inputs.
+
+```{r}
+#| label: likelihood_sampler
+
+likelihood_sampler <- function(n_obs, theta, prior_hyper_params) {
+
+  # infer k_max from vector length: 1(k) + k_max(omega) + 2*k_max(a) + 1(sigma2)
+  k_max <- (length(theta) - 2) / 3
+
+  k <- theta["k"]
+  sigma2 <- theta["sigma2"]
+
+  if (k > 0) {
+    omega <- theta[paste0("omega", 1:k)]   # only first k slots, rest are NA
+    a <- theta[paste0("a", 1:(2 * k))]  # only first 2k slots
+    D <- doucet_build_D(omega, n_obs)
+    mu <- as.vector(D %*% a)
+  } else {
+    mu <- rep(0, n_obs)
+  }
+
+  y <- rnorm(n_obs, mean = mu, sd = sqrt(sigma2))
+  return(y)
+}
+```
+
+And finally our posterior sampler:
+
+```{r}
+#| label: posterior-sampler
+
+posterior_sampler <- function(n_draws,
+                              y,
+                              prior_hyper_params,
+                              init = NULL,
+                              buggy = FALSE #toggle on to replicate original error
+                              ) {
+  hyper <- prior_hyper_params
+  n_obs <- length(y)
+  k_max <- hyper$k_max
+  Lambda <- hyper$Lambda
+
+  # Initialize from prior or use provided init
+  if (is.null(init)) {
+    init_state <- doucet_prior_sampler(prior_hyper_params)
+  } else {
+    init_state <- init
+  }
+  k <- init_state["k"]
+  omega <- sort(init_state[grepl("^omega", names(init_state))])
+  a <- init_state[grepl("^a", names(init_state))]
+  sigma2 <- init_state["sigma2"]
+
+  c_prob <- 0.5
+  b <- function(k) {
+    if (k == k_max) return(0)
+    c_prob * min(1, dpois(k + 1, Lambda) / dpois(k, Lambda))
+  }
+  d <- function(k) {
+    if (k == 0) return(0)
+    c_prob * min(1, dpois(k - 1, Lambda) / dpois(k, Lambda))
+  }
+
+  col_names <- c("k", paste0("omega_", 1:k_max),
+                 paste0("a_c", 1:k_max), paste0("a_s", 1:k_max),
+                 "sigma2")
+  out <- matrix(NA_real_, nrow = n_draws, ncol = length(col_names),
+                dimnames = list(NULL, col_names))
+
+  for (i in seq_len(n_draws)) {
+    bk <- b(k)
+    dk <- d(k)
+    u <- runif(1)
+
+    if (u < bk) {
+      omega_new <- runif(1, 0, pi)
+      omega_prop <- sort(c(omega, omega_new))
+
+      s_old <- doucet_yPy(omega, y, hyper)
+      s_prop <- doucet_yPy(omega_prop, y, hyper)
+
+      r_birth <- ((hyper$gamma0 + s_old) / (hyper$gamma0 + s_prop))^((n_obs + hyper$v0) / 2) *
+        1 / (1 + hyper$delta2)
+      
+      #This is the mistake! Acceptance ratio for birth moves was too small, overly restricting 
+      #the movement of the MCMC chain
+      
+      if (buggy) r_birth <- r_birth / (k + 1)
+
+      if (runif(1) < min(1, r_birth)) {
+        k <- k + 1
+        omega <- omega_prop
+        updated <- doucet_inner_update(omega, rep(0, 2*k), sigma2, y, hyper)
+        a <- updated$a
+        sigma2 <- updated$sigma2
+      }
+
+    } else if (u < bk + dk) {
+      j_kill <- sample.int(k, 1)
+      omega_prop <- omega[-j_kill]
+
+      s_old <- doucet_yPy(omega, y, hyper)
+      s_prop <- doucet_yPy(omega_prop, y, hyper)
+
+      r_birth <- ((hyper$gamma0 + s_prop) / (hyper$gamma0 + s_old))^((n_obs + hyper$v0) / 2) *
+        1 / (1 + hyper$delta2)
+
+      if (runif(1) < min(1, 1 / r_birth)) {
+        k <- k - 1
+        omega <- omega_prop
+        a <- if (k > 0) a[-c(2*j_kill - 1, 2*j_kill)] else numeric(0)
+        updated <- doucet_inner_update(omega, a, sigma2, y, hyper)
+        a <- updated$a
+        sigma2 <- updated$sigma2
+      }
+
+    } else {
+      updated <- doucet_inner_update(omega, a, sigma2, y, hyper)
+      omega <- updated$omega
+      a <- updated$a
+      sigma2 <- updated$sigma2
+    }
+
+    omega_pad <- rep(NA_real_, k_max)
+    if (k > 0) omega_pad[1:k] <- omega
+
+    a_pad <- rep(NA_real_, 2 * k_max)
+    if (k > 0) a_pad[1:(2*k)] <- a
+
+    out[i, ] <- c(k, omega_pad, a_pad, sigma2)
+  }
+
+  return(out)
+}
+```
+
+### Test functions
+
+```{r}
+#| label: test-functions
+
+#define log-likelihood function
+
+log_lik <- function(theta, y) {
+
+  k <- as.integer(theta[["k"]])
+  sigma2 <- theta[["sigma2"]]
+  n <- length(y)
+
+  # construct mean vector
+  if (k > 0) {
+    omega <- as.numeric(theta[paste0("omega", 1:k)])
+    a <- as.numeric(theta[paste0("a", 1:(2 * k))])
+
+    D <- doucet_build_D(omega, n)
+    mu <- as.vector(D %*% a)
+  } else {
+    mu <- rep(0, n)
+  }
+
+  sum(dnorm(y,
+            mean = mu,
+            sd = sqrt(sigma2),
+            log = TRUE))
+}
+
+a_prod = function(theta, y) {
+    k <- theta[["k"]]
+    if (k == 0) return(0)
+
+    a <- theta[paste0("a", 1:(2 * k))]
+    prod(a, na.rm = TRUE)
+}
+
+omega_prod = function(theta, y) {
+    k <- theta[["k"]]
+    if (k == 0) return(0)
+    else if (is.na(k)) return(NA)
+    prod(theta[paste0("omega", 1:k)], na.rm = TRUE)
+  }
+
+test_fns <- make_test_functions(k_marg = function(theta, y) theta["k"], #marginal of k
+                                omega_prod = omega_prod,
+                                log_likelihood = log_lik, #log likelihood defined above
+                                a_prod = a_prod)
+```
+
+
+## Running it
+
+## Geweke checks
+
+Let's set:
+
+```{r}
+n_obs <- 64
+n_draws <- 500
+```
+
+The function `run_geweke` creates both direct and Gibbs draws from the joint.
+
+```{r}
+#| label: run-geweke
+#| warning: false
+doucet_results <- bayescheckr::run_geweke(
+  prior_sampler = prior_sampler,
+  likelihood_sampler = likelihood_sampler,
+  posterior_sampler = posterior_sampler,
+  n_obs = n_obs,
+  n_draws = 1e3,
+  n_burn = 1000,
+  n_thin = 5,
+  prior_hyper_params = prior_hyper_params,
+  parallelize = TRUE
+)
+
+buggy_doucet_results <- bayescheckr::run_geweke(
+  prior_sampler = 
+)
+
+doucet_results$gibbs$wide
+```
+
+### Geweke on test functions
+
+```{r}
+tabulate_geweke_tests(draws = doucet_results,
+                      tests_applied = FALSE,
+                      test_functions = test_fns)
+
+# Alternatively, use the tests_applied parameter if you ever need to separate
+# the test function application and analysis steps:
+# 
+# geweke_test_matrix <- apply_test_functions(direct = doucet_results$direct,
+#                                            gibbs = doucet_results$gibbs,
+#                                            tests_functions = test_fns)
+# 
+# tabulate_geweke_tests(draws = geweke_test_matrix, tests_applied = TRUE)
+```
+
+```{r}
+plot_geweke_tests(direct_draws = doucet_results$direct,
+                 gibbs_draws = doucet_results$gibbs,
+                 test_functions = test_fns)
+```
+
+## SBC checks
+
+The `run_sbc` function computes rank of draws from the posterior and lets us check for uniformity:
+
+```{r}
+#| eval: false
+set.seed(123)
+
+sbc_results <- run_sbc(
+  prior_sampler = prior_sampler,
+  likelihood_sampler = likelihood_sampler,
+  posterior_sampler = posterior_sampler,
+  n_obs = n_obs,
+  n_draws = 2000,
+  n_sims = 500,
+  test_fns = test_fns,
+  prior_hyper_params = prior_hyper_params,
+  parallelize = TRUE
+)
+```
+Let's check the marginals:
+```{r}
+SBC::plot_rank_hist(sbc_results$sbc_result)
+SBC::plot_ecdf(sbc_results$sbc_result)
+SBC::plot_ecdf_diff(sbc_results$sbc_result)
+```
+
+As expected, all fitting within the blue bands.

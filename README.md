@@ -114,6 +114,16 @@ my_posterior <- function(
 
 }
 ```
+# How to format the samplers
+
+To work well with our package, format the inputs and outputs of the samplers in a certain way. 
+
+The prior: [Trisha fills in]
+
+The likelihood: [Trisha fills in]
+
+The posterior: [Trisha fills in]
+
 ## Test functions
 
 Both SBC and Geweke's validation framework only validate on the scalar level. This means validating each model parameter on its own is no issue, but to check the interaction between parameters, we must set up some test functions that transform many parameters into a scalar, for example, multiplying them together.
@@ -372,6 +382,21 @@ Two classification algorithms are currently available, with additional methods p
 
 Different classifiers may detect different types of posterior discrepancies. When computationally feasible, comparing several classifiers is recommended. Any classifier can be supplied directly via the `classifier` argument by implementing the `train`/`predict` interface described below, independent of this table.
 
+The classifier you define must return a list of two functions, `train` and `predict`. The `train` function must intake parameters `(X, y)` and output a fitted model object. The `predict` function must intake parameters `(fit, newX)` with `fit` being `train`'s output and `newX` being the testing data.
+
+```{r}
+my_classifier <- function() {
+  list(
+    train = function(X, y) {
+      #run and output the trained model
+    },
+    predict = function(fit, newX) {
+      #run and output predictions
+    }
+  )
+}
+```
+
 ------------------------------------------------------------------------
 
 ## Interpreting the results
@@ -388,7 +413,13 @@ While this does not identify the source of the discrepancy, it provides strong e
 
 # Visualization
 
-Besides the SBC plots and Geweke's QQ plots, all diagnostics so far are numerical, including all of those pertaining to distributional shift. 
+Besides the SBC plots and Geweke's QQ plots, all diagnostics so far are numerical, including all of those pertaining to distributional shift.
+
+insert more words about visualizations offered - Geweke plots, SBC plots, t-SNE.
+
+Geweke plots: quantile points should be on the y = x line. 
+SBC plots: histograms uniform, lines in footballs
+t-SNE: well mixed blue and red points, no concentrations or clustering
 
 ------------------------------------------------------------------------
 
@@ -441,11 +472,7 @@ Besides the SBC plots and Geweke's QQ plots, all diagnostics so far are numerica
 
 Some Bayesian samplers produce parameter vectors whose dimension changes during sampling.
 
-Since many validation procedures assume a fixed-dimensional parameter space, these samplers require an additional representation before validation.
-
-## Fixed-dimension embedding
-
-Each posterior draw should be embedded into a fixed-dimensional representation corresponding to the largest model considered.
+Since many validation procedures assume a fixed-dimensional parameter space, these samplers require an additional representation before validation. Each posterior draw should be embedded into a fixed-dimensional representation corresponding to the largest model considered.
 
 For example,
 

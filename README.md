@@ -238,6 +238,8 @@ automatically distributes independent simulations across available workers.
 
 # Geweke Joint-Distribution Test
 
+NOTE TO SELF TRISHA: make all Geweke functions intake draws in the same format (either one object or 2, the gibbs/direct draws separately)
+
 The Geweke test compares two different sampling procedures that should produce draws from the same joint distribution ($p(\theta, y)$).
 
 If the posterior sampler is implemented correctly, both procedures generate samples from the same stationary distribution, even though they obtain those samples in different ways.

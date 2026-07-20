@@ -1,6 +1,6 @@
 # bayescheckr
 
-**bayescheckr** is an R package for validating Bayesian posterior samplers. It provides multiple complementary validation methods—including **Simulation-Based Calibration (SBC)**, **Geweke's joint-distribution test**, and **distributional-shift diagnostics**—to help ensure that posterior samplers produce draws from the correct target distribution before they are used for inference.
+**bayescheckr** is an R package for validating Bayesian posterior samplers. It provides multiple complementary validation methods—including [**Simulation-Based Calibration (SBC)**](https://github.com/hyunjimoon/SBC), [**Geweke's joint-distribution test**](https://www.tandfonline.com/doi/abs/10.1198/016214504000001132), and [**distributional-shift diagnostics**](https://arxiv.org/abs/1610.06545)—to help ensure that posterior samplers produce draws from the correct target distribution before they are used for inference.
 
 Rather than relying on a single diagnostic, **bayescheckr** offers several independent validation approaches. Different methods are sensitive to different implementation errors, making it easier to identify subtle bugs that may otherwise go unnoticed.
 
@@ -39,24 +39,24 @@ library(bayescheckr)
 
 # Hyperparameters passed to all three samplers
 prior_hyper_params <- list(
-  mu_0    = 0,
-  sigma_0 = 1,
-  sigma   = 2
+  mu_0 = 0,
+  sigma2_0 = 1,
+  sigma2 = 2
 )
 
 #----------------------------------------------------------
 # Prior sampler
 #----------------------------------------------------------
 
-my_prior <- function(hyper) {
+my_prior <- function(prior_hyper_params) {
 
-  list(
+  return(list(
     mu = rnorm(
       1,
       mean = hyper$mu_0,
-      sd   = hyper$sigma_0
+      sd = hyper$sigma2_0
     )
-  )
+  ))
 
 }
 
@@ -64,13 +64,13 @@ my_prior <- function(hyper) {
 # Likelihood sampler
 #----------------------------------------------------------
 
-my_likelihood <- function(n_obs, theta, hyper) {
+my_likelihood <- function(n_obs, theta, prior_hyper_params) {
 
-  rnorm(
+  return(rnorm(
     n_obs,
     mean = theta["mu"],
-    sd   = prior_hyper_params$sigma
-  )
+    sd = prior_hyper_params$sigma2
+  ))
 
 }
 
@@ -79,7 +79,7 @@ my_likelihood <- function(n_obs, theta, hyper) {
 #----------------------------------------------------------
 
 my_posterior <- function(
-  ndraws,
+  n_draws,
   y,
   prior_hyper_params,
   init = NULL
@@ -87,30 +87,30 @@ my_posterior <- function(
 
   n <- length(y)
 
-  sigma_n_sq <-
+  sigma2_n <-
     1 /
     (
       n / prior_hyper_params$sigma^2 +
-      1 / prior_hyper_params$sigma_0^2
+      1 / prior_hyper_params$sigma2_0^2
     )
 
   mu_n <-
-    sigma_n_sq *
+    sigma2_n *
     (
       sum(y) / prior_hyper_params$sigma^2 +
       prior_hyper_params$mu_0 /
       prior_hyper_params$sigma_0^2
     )
 
-  matrix(
+  return(matrix(
     rnorm(
       ndraws,
       mu_n,
-      sqrt(sigma_n_sq)
+      sqrt(sigma2_n)
     ),
     ncol = 1,
     dimnames = list(NULL, "mu")
-  )
+  ))
 
 }
 ```
@@ -119,9 +119,10 @@ my_posterior <- function(
 To work well with our package, format the inputs and outputs of the samplers in a certain way. 
 
 The prior: 
-- input: `prior_hyper_params`
-- return: a named object (list or named vector) where `names()` gives parameter names and `length()` gives parameter count.
-Additionally: The example above wraps scalar parameters in a simple list. To include vector parameters, the recommended pattern is as follows: c(setNames(vector_params, names), list(scalar_param = value)).
+- **input**: `prior_hyper_params`
+- **return**: a named object (list or named vector) where `names()` gives parameter names and `length()` gives parameter count.
+
+Other notes: The example above wraps scalar parameters in a simple list. To include vector parameters, the recommended pattern is as follows: `c(setNames(vector_params, names), list(scalar_param = value))`.
 
 ```{r}
 #for parameters beta (a vector) and sigmasq (a scalar)
@@ -131,13 +132,14 @@ return(c(beta_list, list(sigmasq = sig2)))
 ```
 
 The likelihood: 
-- input: `(n_obs, theta, prior_hyper_params)`
-- return: a plain numeric vector of length n_obs.
-Additionally: Access theta defensively. Use theta[["name"]] or theta[[index]] with a double bracket not single bracket, and `unlist(theta[1:p])` to extract sub-vectors.
+- **input**: `(n_obs, theta, prior_hyper_params)`
+- **return**: a plain numeric vector of length n_obs.
+
+Other notes: Access theta defensively. Use theta[["name"]] or theta[[index]] with a double bracket not single bracket, and `unlist(theta[1:p])` to extract sub-vectors.
 
 The posterior:
-- input: `(n_draws, y, prior_hyper_params, init = NULL)`. The `init` argument allows the posterior to initialize to better and better update points as the MCMC chain converges. First line of the function body should **always be** `theta <- if (is.null(init)) <your_default> else unlist(init)`. 
-- return: a matrix with `n_draws` rows and named columns matching the names from `prior_sampler`.
+- **input**: `(n_draws, y, prior_hyper_params, init = NULL)`. The `init` argument allows the posterior to initialize to better and better update points as the MCMC chain converges. First line of the function body should **always be** `theta <- if (is.null(init)) <your_default> else unlist(init)`. 
+- **return**: a matrix with `n_draws` rows and named columns matching the names from `prior_sampler`.
 
 ## Test functions
 
@@ -150,12 +152,10 @@ Our package contains a `make_test_functions` function that makes this process ea
 ```{r}
 test_fns <- make_test_functions(
 
-  mu_marginal      = function(theta, y) theta$mu,
+  mu_marginal = function(theta, y) theta$mu,
   sigmasq_marginal = function(theta, y) theta$sigmasq,
-  product          = function(theta, y) theta$mu * theta$sigma,
-  log_like         = function(theta, y) sum(
-                                          dnorm(
-                                          y, 
+  product = function(theta, y) theta$mu * theta$sigma,
+  log_like = function(theta, y) sum(dnorm(y, 
                                           theta$mu, 
                                           sqrt(theta$sigmasq), 
                                           log = TRUE))
@@ -238,14 +238,14 @@ automatically distributes independent simulations across available workers.
 
 # Geweke Joint-Distribution Test
 
-The Geweke test compares two different sampling procedures that should produce draws from the same joint distribution (p(\theta, y)).
+The Geweke test compares two different sampling procedures that should produce draws from the same joint distribution ($p(\theta, y)$).
 
 If the posterior sampler is implemented correctly, both procedures generate samples from the same stationary distribution, even though they obtain those samples in different ways.
 
 The two procedures are:
 
 - **Marginal–conditional (direct) sampler** – independently draw parameters from the prior, then simulate data from the likelihood.
-- **Successive–conditional (Gibbs) sampler** – repeatedly alternate between sampling from the posterior (p(\theta \mid y)) and the likelihood (p(y \mid \theta)).
+- **Successive–conditional (Gibbs) sampler** – repeatedly alternate between sampling from the posterior ($p(\theta \mid y)$) and the likelihood ($p(y \mid \theta)$).
 
 Agreement between these two sampling procedures provides evidence that the posterior sampler is correct.
 
@@ -381,7 +381,6 @@ You can use the $ operator to access the c2st dataframe outputted by `run_distri
 
 ``` r
 c2st <- shift_result$feature_importance
-head(c2st)
 ```
 In this data frame, each row represents one parameter (e.g., “beta1” or “mu”) and lists specific statistics for each: `observed_drop` and a corresponding `p_value` ($H_0$: the parameter does not contribute much to classifier accuracy). `observed_drop` is computed as the drop in classifier accuracy from leaving each parameter out iteratively; this determines each parameter’s relative influence. A high `observed_drop` and low `p_value` might indicate that a parameter is sampled incorrectly in the posterior, nudging a researcher to start their debugging there.   
 
@@ -568,22 +567,20 @@ Although each diagnostic can be used independently, we recommend combining multi
 A typical workflow is
 
 ``` text
-Prior sampler
+Define Prior sampler
       │
       ▼
-Likelihood sampler
+Define Likelihood sampler
       │
       ▼
-Posterior sampler
+Define Posterior sampler
       │
       ▼
- Simulation-Based Calibration
+Simulation-Based Calibration
       │
       ▼
- Geweke Joint Test
+Geweke Joint Test
       │
       ▼
- Distributional Shift
+Distributional Shift
 ```
-
-add statement here

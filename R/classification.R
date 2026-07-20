@@ -66,6 +66,71 @@ default_xgb_classifier <- function(nrounds = 100) {
   )
 }
 
+# ---- random forest classifier: opt-in, matches the old default behavior ----------
+#' default_rforest_classifier
+#'
+#' Runs random forest classifier.
+#'
+#' @param nrounds replace this
+#' @return returns a list of two functions: train and test.
+#' @export
+default_rforest_classifier <- function(...) {
+  #need to replace all of this
+  list(
+    train = function(X, y) {
+      dtrain <- xgboost::xgb.DMatrix(as.matrix(X), label = y)
+      xgboost::xgb.train(
+        params = list(
+          objective        = "binary:logistic",
+          eval_metric      = "logloss",
+          max_depth        = 4,
+          eta              = .1,
+          subsample        = .8,
+          colsample_bytree = .8
+        ),
+        data    = dtrain,
+        nrounds = nrounds,
+        verbose = 0
+      )
+    },
+    predict = function(fit, newX) {
+      predict(fit, xgboost::xgb.DMatrix(as.matrix(newX)))
+    }
+  )
+}
+
+# ---- Support Vector Machine classifier: opt-in, matches the old default behavior ----------
+#' default_svm_classifier
+#'
+#' Runs Support Vector Machine classifier.
+#'
+#' @param nrounds replace this
+#' @return returns a list of two functions: train and test.
+#' @export
+default_svm_classifier <- function(...) {
+  #need to replace all of this
+  list(
+    train = function(X, y) {
+      dtrain <- xgboost::xgb.DMatrix(as.matrix(X), label = y)
+      xgboost::xgb.train(
+        params = list(
+          objective        = "binary:logistic",
+          eval_metric      = "logloss",
+          max_depth        = 4,
+          eta              = .1,
+          subsample        = .8,
+          colsample_bytree = .8
+        ),
+        data    = dtrain,
+        nrounds = nrounds,
+        verbose = 0
+      )
+    },
+    predict = function(fit, newX) {
+      predict(fit, xgboost::xgb.DMatrix(as.matrix(newX)))
+    }
+  )
+}
 
 # ---- generic permutation feature importance, works for any classifier ------
 
@@ -103,8 +168,10 @@ default_xgb_classifier <- function(nrounds = 100) {
                              alpha       = 0.05,
                              dist        = "normal") {  # significance level for h0 decision
 
-  if (is.null(classifier)) {
+  if (is.null(classifier) | classifier == "logistic") {
     classifier <- default_glm_classifier()
+  } else if (classifier == "xgboost") {
+    classifier <- default_xgb_classifier()
   }
   stopifnot(is.function(classifier$train), is.function(classifier$predict))
 

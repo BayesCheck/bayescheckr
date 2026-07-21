@@ -469,7 +469,7 @@ c2st_primiceri_wrong
 viz_primiceri_wrong <- fit_c2st_for_viz(
   wrong_direct_draws$theta,
   wrong_gibbs_draws$theta,
-  classifier = default_xgb_classifier(nrounds = 200),
+  classifier = default_xgb_classifier(n_rounds = 200),
   seed = 1
 )
 
@@ -553,104 +553,3 @@ SBC::plot_ecdf_diff(primiceri_sbc_wrong$sbc_result)
 
 SBC checks were a lot clearer and more informative for this problem. There is a clear difference between the histograms & ECDF plots of the correct sampler and the wrong assembly one, flagging the error. The only variable that defies this is `s`, potentially due to being a discrete variable taking on only values {1, ..., 7}, leading to higher variance and noise.
 
-```{r}
-#| label: pacmap-setup
-
-# install.packages("reticulate") if not already installed
-library(reticulate)
-reticulate::use_condaenv("pacmap311", conda = "/opt/anaconda3/bin/conda", required = TRUE)
-pacmap <- reticulate::import("pacmap")
-```
-
-```{r}
-#| label: prep-data-matrix-primiceri-correct
-
-direct_df <- correct_direct_draws$theta
-gibbs_df  <- correct_gibbs_draws$theta
-
-direct_df$source <- "direct"
-gibbs_df$source  <- "gibbs"
-
-combined_df_correct <- rbind(direct_df, gibbs_df)  # column names/types match: theta, sigmasq, s_1..s_n, source
-
-feature_cols <- setdiff(names(combined_df_correct), "source")
-data_matrix_correct <- as.matrix(combined_df_correct[, feature_cols])
-storage.mode(data_matrix_correct) <- "double"
-
-# sanity check, same spirit as the duplicate check before Rtsne()
-sum(duplicated(data_matrix_correct))
-```
-
-```{r}
-#| label: pacmap-embed-primiceri-correct
-
-set.seed(1)
-reducer_correct <- pacmap$PaCMAP()
-embedding_correct <- reducer_correct$fit_transform(data_matrix_correct)
-
-pacmap_df_correct <- data.frame(
-  pacmap1 = embedding_correct[, 1],
-  pacmap2 = embedding_correct[, 2],
-  source  = factor(combined_df_correct$source, levels = c("direct", "gibbs"),
-                    labels = c("direct (A)", "gibbs (B)"))
-)
-```
-
-```{r}
-#| label: pacmap-plot-primiceri-correct
-
-library(ggplot2)
-
-ggplot(pacmap_df_correct, aes(x = pacmap1, y = pacmap2, color = source)) +
-  geom_point(alpha = 0.4, size = 0.8) +
-  scale_color_manual(values = c("direct (A)" = "#08519c", "gibbs (B)" = "#9ecae1")) +
-  labs(title = "PaCMAP embedding of theta-space -- Primiceri corrected (baseline)") +
-  theme_minimal()
-```
-
-```{r}
-#| label: prep-data-matrix-primiceri-wrong
-
-direct_df_w <- wrong_direct_draws$theta
-gibbs_df_w  <- wrong_gibbs_draws$theta
-
-direct_df_w$source <- "direct"
-gibbs_df_w$source  <- "gibbs"
-
-combined_df_wrong <- rbind(direct_df_w, gibbs_df_w)
-
-feature_cols_w <- setdiff(names(combined_df_wrong), "source")
-data_matrix_wrong <- as.matrix(combined_df_wrong[, feature_cols_w])
-storage.mode(data_matrix_wrong) <- "double"
-
-sum(duplicated(data_matrix_wrong))
-```
-
-
-```{r}
-#| label: pacmap-embed-primiceri-wrong
-
-set.seed(1)
-reducer_wrong <- pacmap$PaCMAP()
-embedding_wrong <- reducer_wrong$fit_transform(data_matrix_wrong)
-
-pacmap_df_wrong <- data.frame(
-  pacmap1 = embedding_wrong[, 1],
-  pacmap2 = embedding_wrong[, 2],
-  source  = factor(combined_df_wrong$source, levels = c("direct", "gibbs"),
-                    labels = c("direct (A)", "gibbs (B)"))
-)
-```
-
-```{r}
-#| label: pacmap-plot-primiceri-wrong
-
-ggplot(pacmap_df_wrong, aes(x = pacmap1, y = pacmap2, color = source)) +
-  geom_point(alpha = 0.4, size = 0.8) +
-  scale_color_manual(values = c("direct (A)" = "#08519c", "gibbs (B)" = "#9ecae1")) +
-  labs(title = "PaCMAP embedding of theta-space -- Primiceri original error") +
-  theme_minimal()
-```
-
-```{r}
-```

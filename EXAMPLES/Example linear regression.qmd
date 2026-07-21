@@ -158,9 +158,11 @@ posterior_sampler <- function(n_draws, y, prior_hyper_params,
   # 
   # })
   
-  list(beta1 = THETA[s, 1],
-     beta2   = THETA[s, 2],
-     sigmasq = THETA[s, 3])
+  # list(beta1 = THETA[s, 1],
+  #    beta2   = THETA[s, 2],
+  #    sigmasq = THETA[s, 3])
+  # 
+  return(THETA)
 }
 ```
 

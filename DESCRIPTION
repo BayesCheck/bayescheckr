@@ -2,9 +2,15 @@ Package: bayescheckr
 Title: Bayesian Posterior Sampler Validator through Geweke and SBC frameworks
 Version: 0.1.1
 Authors@R: 
-    person(given = "Lance", family = "Browne", role = c("aut", "cre"), email = "lance.browne@duke.edu")
-Author: Lance Browne [aut, cre]
-Maintainer: Lance Browne <lance.browne@duke.edu>
+    c(person(given = "Lance",
+             family = "Browne",
+             role = c("aut", "cre"), 
+             email = "lance.browne@duke.edu"),
+      person(given = "Trisha",
+             family = "Iyer",
+             role = "aut",
+             email = "trisha.iyer@duke.edu")
+    )
 Description: Tools for validating posterior samplers using 
     Geweke joint distribution tests and simulation-based calibration (SBC)
 License: MIT + file LICENSE

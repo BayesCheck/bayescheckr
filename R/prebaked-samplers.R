@@ -193,8 +193,6 @@ linreg_posterior_sampler <- function(n_draws, y, prior_hyper_params,
   return(THETA)
 }
 
-# PENDING/TO DO NEXT: Doucet & Primiceri correct implementations
-
 #Reversible jump MCMC, Andrieu & Doucet (1999) paper -----
 
 #first, define all Doucet helper functions so they're exported
@@ -426,8 +424,8 @@ doucet_posterior_sampler <- function(n_draws,
     c_prob * min(1, dpois(k - 1, Lambda) / dpois(k, Lambda))
   }
 
-  col_names <- c("k", paste0("omega_", 1:k_max),
-                 paste0("a_c", 1:k_max), paste0("a_s", 1:k_max),
+  col_names <- c("k", paste0("omega", 1:k_max),
+                 paste0("a", 1:(2*k_max)),
                  "sigma2")
   out <- matrix(NA_real_, nrow = n_draws, ncol = length(col_names),
                 dimnames = list(NULL, col_names))
@@ -446,7 +444,9 @@ doucet_posterior_sampler <- function(n_draws,
 
       r_birth <- ((hyper$gamma0 + s_old) / (hyper$gamma0 + s_prop))^((n_obs + hyper$v0) / 2) *
         1 / (1 + hyper$delta2)
-      
+
+      #This is the mistake! Acceptance ratio for birth moves was too small,
+      #overly restricting the movement of the MCMC chain
       if (buggy) r_birth <- r_birth / (k + 1)
 
       if (runif(1) < min(1, r_birth)) {

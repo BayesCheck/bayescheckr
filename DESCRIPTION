@@ -5,11 +5,28 @@ Authors@R:
     c(person(given = "Lance",
              family = "Browne",
              role = c("aut", "cre"), 
-             email = "lance.browne@duke.edu"),
+             email = "lance.browne@duke.edu"
+             ),
       person(given = "Trisha",
              family = "Iyer",
              role = "aut",
-             email = "trisha.iyer@duke.edu")
+             email = "trisha.iyer@duke.edu"
+             ),
+      person(given = "Rafael",
+             family = "Mautner",
+             role = "aut",
+             email = "rafael.mautner@duke.edu"
+             ),
+      person(given = "John",
+             family = "Zito",
+             role = c("aut", "cph"),
+             email = "john.zito@duke.edu"
+             ),
+      person(given = "Benjamin",
+             family = "Dahl",
+             role = "aut",
+             email = "benjamin.dahl@duke.edu"
+             )
     )
 Description: Tools for validating posterior samplers using 
     Geweke joint distribution tests and simulation-based calibration (SBC)

@@ -42,7 +42,7 @@ default_glm_classifier <- function() {
 #' @param nrounds How many "cuts" XGBoost does.
 #' @return returns a list of two functions: train and test.
 #' @export
-default_xgb_classifier <- function(n_rounds = 100) {
+default_xgb_classifier <- function(nrounds = 100) {
   list(
     train = function(X, y) {
       dtrain <- xgboost::xgb.DMatrix(as.matrix(X), label = y)
@@ -77,7 +77,7 @@ default_xgb_classifier <- function(n_rounds = 100) {
 #'
 #' @return A list containing train() and predict() functions.
 #' @export
-default_rforest_classifier <- function(ntree = 500, ...) {
+default_rforest_classifier <- function(ntree = 500) {
 
   list(
 
@@ -87,8 +87,7 @@ default_rforest_classifier <- function(ntree = 500, ...) {
       randomForest::randomForest(
         .y ~ .,
         data = df,
-        ntree = ntree,
-        ...
+        ntree = ntree
       )
     },
 
@@ -118,8 +117,7 @@ default_rforest_classifier <- function(ntree = 500, ...) {
 #' @export
 default_svm_classifier <- function(kernel = "radial",
                                    cost = 1,
-                                   gamma = NULL,
-                                   ...) {
+                                   gamma = NULL) {
 
   list(
 
@@ -133,8 +131,7 @@ default_svm_classifier <- function(kernel = "radial",
         kernel = kernel,
         cost = cost,
         gamma = gamma,
-        probability = TRUE,
-        ...
+        probability = TRUE
       )
     },
 

@@ -146,9 +146,9 @@ Quantitative comparison using `tabulate_geweke_tests`:
 ```{r}
 #| label: geweke-test-chart
 
-tabulate_geweke_tests(list(direct = direct_draws,
-                 gibbs = gibbs_draws),
-                 test_functions = test_fns)
+tabulate_geweke_tests(direct_draws,
+                      gibbs_draws,
+                      test_functions = test_fns)
 ```
 
 Alternatively, use the tests_applied parameter if you ever need to separate the test function application and analysis steps:
@@ -172,8 +172,8 @@ Make some QQ plots:
 ```{r}
 #| label: geweke-test-qq-plots
 
-plot_geweke_tests(list(direct_draws = direct_draws,
-                 gibbs_draws = gibbs_draws),
+plot_geweke_tests(direct_draws,
+                 gibbs_draws,
                  test_functions = test_fns,
                  probs = seq(0.01, 0.99, 0.01))
 ```

@@ -56,7 +56,7 @@ default_xgb_classifier <- function(n_rounds = 100) {
           colsample_bytree = .8
         ),
         data    = dtrain,
-        n_rounds = n_rounds,
+        nrounds = n_rounds,
         verbose = 0
       )
     },

@@ -39,10 +39,10 @@ default_glm_classifier <- function() {
 #'
 #' Runs XG boost classifier instead of the default logistic regression.
 #'
-#' @param n_rounds How many "cuts" XGBoost does.
+#' @param nrounds How many "cuts" XGBoost does.
 #' @return returns a list of two functions: train and test.
 #' @export
-default_xgb_classifier <- function(n_rounds = 100) {
+default_xgb_classifier <- function(nrounds = 100) {
   list(
     train = function(X, y) {
       dtrain <- xgboost::xgb.DMatrix(as.matrix(X), label = y)
@@ -56,7 +56,7 @@ default_xgb_classifier <- function(n_rounds = 100) {
           colsample_bytree = .8
         ),
         data    = dtrain,
-        n_rounds = n_rounds,
+        nrounds = nrounds,
         verbose = 0
       )
     },
@@ -66,93 +66,89 @@ default_xgb_classifier <- function(n_rounds = 100) {
   )
 }
 
-# ---- random forest classifier: opt-in, matches the old default behavior ----------
+# ---- random forest classifier ----------------------------------------------
+
 #' default_rforest_classifier
 #'
-#' Runs random forest classifier.
+#' Runs a Random Forest classifier.
 #'
-#' @param n_rounds replace this
-#' @return returns a list of two functions: train and test.
+#' @param ntree Number of trees in the forest.
+#' @param ... Additional arguments passed to randomForest::randomForest().
+#'
+#' @return A list containing train() and predict() functions.
 #' @export
-default_rforest_classifier <- function(...) {
-  #need to replace all of this
+default_rforest_classifier <- function(ntree = 500) {
+
   list(
+
     train = function(X, y) {
-      dtrain <- xgboost::xgb.DMatrix(as.matrix(X), label = y)
-      xgboost::xgb.train(
-        params = list(
-          objective        = "binary:logistic",
-          eval_metric      = "logloss",
-          max_depth        = 4,
-          eta              = .1,
-          subsample        = .8,
-          colsample_bytree = .8
-        ),
-        data    = dtrain,
-        n_rounds = n_rounds,
-        verbose = 0
+      df <- data.frame(X, .y = factor(y))
+
+      randomForest::randomForest(
+        .y ~ .,
+        data = df,
+        ntree = ntree
       )
     },
+
     predict = function(fit, newX) {
-      predict(fit, xgboost::xgb.DMatrix(as.matrix(newX)))
+      predict(
+        fit,
+        newdata = as.data.frame(newX),
+        type = "prob"
+      )[, 2]
     }
+
   )
 }
 
-# ---- Support Vector Machine classifier: opt-in, matches the old default behavior ----------
+# ---- support vector machine classifier -------------------------------------
+
 #' default_svm_classifier
 #'
-#' Runs Support Vector Machine classifier.
+#' Runs a Support Vector Machine classifier.
 #'
-#' @param n_rounds replace this
-#' @return returns a list of two functions: train and test.
+#' @param kernel Kernel used by the SVM.
+#' @param cost Cost parameter.
+#' @param gamma Gamma parameter (for radial kernels).
+#' @param ... Additional arguments passed to e1071::svm().
+#'
+#' @return A list containing train() and predict() functions.
 #' @export
-default_svm_classifier <- function(...) {
-  #need to replace all of this
+default_svm_classifier <- function(kernel = "radial",
+                                   cost = 1,
+                                   gamma = NULL) {
+
   list(
+
     train = function(X, y) {
-      dtrain <- xgboost::xgb.DMatrix(as.matrix(X), label = y)
-      xgboost::xgb.train(
-        params = list(
-          objective        = "binary:logistic",
-          eval_metric      = "logloss",
-          max_depth        = 4,
-          eta              = .1,
-          subsample        = .8,
-          colsample_bytree = .8
-        ),
-        data    = dtrain,
-        n_rounds = n_rounds,
-        verbose = 0
+
+      df <- data.frame(X, .y = factor(y))
+
+      e1071::svm(
+        .y ~ .,
+        data = df,
+        kernel = kernel,
+        cost = cost,
+        gamma = gamma,
+        probability = TRUE
       )
     },
+
     predict = function(fit, newX) {
-      predict(fit, xgboost::xgb.DMatrix(as.matrix(newX)))
+
+      pred <- predict(
+        fit,
+        newdata = as.data.frame(newX),
+        probability = TRUE
+      )
+
+      probs <- attr(pred, "probabilities")
+
+      probs[, which(colnames(probs) == "1")]
     }
+
   )
-}
-
-# ---- generic permutation feature importance, works for any classifier ------
-
-.permutation_importance <- function(fit, predict_fn, Xtest, ytest,
-                                    baseline_acc, n_perm = 99) {
-
-  feature_cols <- colnames(Xtest)
-
-  purrr::map_dfr(feature_cols, function(f) {
-    perm_acc <- replicate(n_perm, {
-      Xperm      <- Xtest
-      Xperm[, f] <- sample(Xperm[, f])
-      p_perm     <- predict_fn(fit, Xperm)
-      mean(ifelse(p_perm > 0.5, 1, 0) == ytest, na.rm = TRUE)
-    })
-
-    data.frame(
-      feature       = f,
-      observed_drop = baseline_acc - mean(perm_acc),
-      p_value       = (sum(perm_acc >= baseline_acc) + 1) / (n_perm + 1)
-    )
-  })
 }
 
 

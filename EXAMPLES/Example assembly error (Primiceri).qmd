@@ -397,7 +397,7 @@ c2st_primiceri_correct
 viz_primiceri_correct <- fit_c2st_for_viz(
   correct_direct_draws$theta,
   correct_gibbs_draws$theta,
-  classifier = default_xgb_classifier(nrounds = 200),
+  classifier = default_xgb_classifier(n_rounds = 200),
   seed = 1
 )
 
@@ -469,7 +469,7 @@ c2st_primiceri_wrong
 viz_primiceri_wrong <- fit_c2st_for_viz(
   wrong_direct_draws$theta,
   wrong_gibbs_draws$theta,
-  classifier = default_xgb_classifier(nrounds = 200),
+  classifier = default_xgb_classifier(n_rounds = 200),
   seed = 1
 )
 
@@ -552,7 +552,4 @@ SBC::plot_ecdf_diff(primiceri_sbc_wrong$sbc_result)
 ```
 
 SBC checks were a lot clearer and more informative for this problem. There is a clear difference between the histograms & ECDF plots of the correct sampler and the wrong assembly one, flagging the error. The only variable that defies this is `s`, potentially due to being a discrete variable taking on only values {1, ..., 7}, leading to higher variance and noise.
-
-
-
 

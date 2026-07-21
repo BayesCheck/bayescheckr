@@ -256,3 +256,12 @@ SBC::plot_ecdf_diff(sbc_results$sbc_result)
 
 As expected, all fitting within the blue bands.
 
+```{r}
+
+
+
+
+
+
+
+```

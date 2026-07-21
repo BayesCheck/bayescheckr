@@ -39,10 +39,10 @@ default_glm_classifier <- function() {
 #'
 #' Runs XG boost classifier instead of the default logistic regression.
 #'
-#' @param nrounds How many "cuts" XGBoost does.
+#' @param n_rounds How many "cuts" XGBoost does.
 #' @return returns a list of two functions: train and test.
 #' @export
-default_xgb_classifier <- function(nrounds = 100) {
+default_xgb_classifier <- function(n_rounds = 100) {
   list(
     train = function(X, y) {
       dtrain <- xgboost::xgb.DMatrix(as.matrix(X), label = y)
@@ -56,7 +56,7 @@ default_xgb_classifier <- function(nrounds = 100) {
           colsample_bytree = .8
         ),
         data    = dtrain,
-        nrounds = nrounds,
+        n_rounds = n_rounds,
         verbose = 0
       )
     },
@@ -71,7 +71,7 @@ default_xgb_classifier <- function(nrounds = 100) {
 #'
 #' Runs random forest classifier.
 #'
-#' @param nrounds replace this
+#' @param n_rounds replace this
 #' @return returns a list of two functions: train and test.
 #' @export
 default_rforest_classifier <- function(...) {
@@ -89,7 +89,7 @@ default_rforest_classifier <- function(...) {
           colsample_bytree = .8
         ),
         data    = dtrain,
-        nrounds = nrounds,
+        n_rounds = n_rounds,
         verbose = 0
       )
     },
@@ -104,7 +104,7 @@ default_rforest_classifier <- function(...) {
 #'
 #' Runs Support Vector Machine classifier.
 #'
-#' @param nrounds replace this
+#' @param n_rounds replace this
 #' @return returns a list of two functions: train and test.
 #' @export
 default_svm_classifier <- function(...) {
@@ -122,7 +122,7 @@ default_svm_classifier <- function(...) {
           colsample_bytree = .8
         ),
         data    = dtrain,
-        nrounds = nrounds,
+        n_rounds = n_rounds,
         verbose = 0
       )
     },
@@ -163,7 +163,7 @@ default_svm_classifier <- function(...) {
                              varnames,
                              classifier  = NULL,   # <- pluggable
                              train_frac  = 0.8,
-                             nrounds     = 100,     # only used by the default xgb classifier
+                             n_rounds     = 100,     # only used by the default xgb classifier
                              n_perm      = 20,
                              alpha       = 0.05,
                              dist        = "normal") {  # significance level for h0 decision
@@ -279,7 +279,7 @@ run_distributional_shift <- function(
     gibbs_draws,
     classifier  = NULL,
     train_frac  = 0.8,
-    nrounds     = 100,
+    n_rounds     = 100,
     n_perm      = 20,
     alpha       = 0.05,
     dist        = "normal"
@@ -301,7 +301,7 @@ run_distributional_shift <- function(
     varnames,
     classifier = classifier,
     train_frac = train_frac,
-    nrounds    = nrounds,
+    n_rounds    = n_rounds,
     n_perm     = n_perm,
     alpha      = alpha,
     dist       = dist
@@ -323,7 +323,7 @@ run_distributional_shift <- function(
 #
 #   result <- run_distributional_shift(
 #     direct_draws, gibbs_draws,
-#     classifier = .default_xgb_classifier(nrounds = 100)
+#     classifier = .default_xgb_classifier(n_rounds = 100)
 #   )
 
 

@@ -606,6 +606,7 @@ buggy_c2st_results$feature_importance
 The `run_sbc()` function computes rank of draws from the posterior and lets us check for uniformity:
 
 ```{r}
+#| label: run-sbc
 #| eval: false
 set.seed(123)
 

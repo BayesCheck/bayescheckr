@@ -87,59 +87,6 @@ linreg_likelihood_sampler <- function(n_obs, theta, prior_hyper_params){
 }
 
 #' @export
-# linreg_posterior_sampler <- function(n_draws,
-#                                      y,
-#                                      prior_hyper_params,
-#                                      init = NULL
-#                                      ) {
-#   X      <- prior_hyper_params$X
-#   beta_0 <- prior_hyper_params$beta_0
-#   v_0    <- prior_hyper_params$v_0
-#   a_0    <- prior_hyper_params$a_0
-#   b_0    <- prior_hyper_params$b_0
-#
-#   #pre-allocate storage and initialize
-#   p <- ncol(X)
-#   n_obs <- length(y)
-#   THETA <- matrix(0, nrow = n_draws, ncol = p+1)
-#   colnames(THETA) <- c(paste0("beta", 1:p), "sigmasq")
-#
-#   #initialize values
-#   theta <- if (is.null(init)) c(rep(0, p), 1) else init
-#
-#   v_0_inv <- solve(v_0)
-#   X_trans <- t(X)
-#
-#   for(s in 1:n_draws){
-#
-#     beta_n <- solve( v_0_inv + (X_trans%*%X)/theta[p+1] ) %*%
-#       ( v_0_inv%*%beta_0 + (X_trans%*%y)/theta[p+1] )
-#
-#     v_n <- solve( v_0_inv + (X_trans%*%X)/theta[p+1] )
-#
-#     theta[1:p] <- mvtnorm::rmvnorm(1, beta_n, v_n)
-#
-#     #draw from updated sigma
-#     ssr <- t(y - X%*%theta[1:p])%*%(y - X%*%theta[1:p])
-#
-#     a_n <- a_0 + n_obs/2
-#     b_n <- ssr/2 + b_0
-#
-#     theta[p+1] <- 1 / rgamma(1, shape = a_n, rate = b_n)
-#
-#     THETA[s, ] <- theta
-#
-#   }
-#
-#   #return(THETA)
-#
-#   lapply(seq_len(n_draws), function(s) {
-#     betas <- setNames(as.list(THETA[s, 1:p]), paste0("beta", 1:p))
-#     c(betas, list(sigmasq = THETA[s, p+1]))
-#   } )
-# }
-
-#' @export
 linreg_posterior_sampler <- function(n_draws, y, prior_hyper_params,
                               init = NULL)
 {

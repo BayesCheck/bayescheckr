@@ -5,15 +5,6 @@ format: html
 
 ## Setup
 
-This qmd contains a working example of an 'assembly' error in a posterior sampler, that is, all parts computed correctly, but put together in the wrong order. The example is inspired by Primiceri (2005).
-
----
-title: "Primiceri"
-format: pdf
----
-
-## Setup
-
 We are looking at a simple iid normal model, but with a key prior difference that changes everything.
 
 The model is:

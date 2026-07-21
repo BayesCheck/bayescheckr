@@ -172,7 +172,7 @@ default_svm_classifier <- function(...) {
     classifier <- default_glm_classifier()
   } else if (classifier == "xgboost") {
     classifier <- default_xgb_classifier()
-  }
+  } else classifier <- classifier()
   stopifnot(is.function(classifier$train), is.function(classifier$predict))
 
   ##-----------------------

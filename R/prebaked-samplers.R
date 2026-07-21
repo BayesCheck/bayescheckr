@@ -345,7 +345,7 @@ doucet_prior_sampler <- function(prior_hyper_params) {
 
   # 4. sample a_k | omega_k, sigma2, k ~ N_k(0, delta2 * sigma2 * (D^T D)^{-1})
   if (k > 0) {
-    D <- build_D(omega, n = n)
+    D <- doucet_build_D(omega, n = n)
     DtD_inv <- solve(t(D) %*% D)
     Sigma_a <- sigma2 * delta2 * DtD_inv #sigma2 value x Sigma matrix described
     a <- as.vector(mvtnorm::rmvnorm(1,
@@ -384,7 +384,7 @@ doucet_likelihood_sampler <- function(n_obs, theta, prior_hyper_params) {
   if (k > 0) {
     omega <- theta[paste0("omega", 1:k)]   # only first k slots, rest are NA
     a <- theta[paste0("a", 1:(2 * k))]  # only first 2k slots
-    D <- build_D(omega, n_obs)
+    D <- doucet_build_D(omega, n_obs)
     mu <- as.vector(D %*% a)
   } else {
     mu <- rep(0, n_obs)
@@ -398,7 +398,8 @@ doucet_likelihood_sampler <- function(n_obs, theta, prior_hyper_params) {
 doucet_posterior_sampler <- function(n_draws,
                                      y,
                                      prior_hyper_params,
-                                     init = NULL) {
+                                     init = NULL,
+                                     buggy = FALSE) {
   hyper <- prior_hyper_params
   n_obs <- length(y)
   k_max <- hyper$k_max
@@ -445,6 +446,8 @@ doucet_posterior_sampler <- function(n_draws,
 
       r_birth <- ((hyper$gamma0 + s_old) / (hyper$gamma0 + s_prop))^((n_obs + hyper$v0) / 2) *
         1 / (1 + hyper$delta2)
+      
+      if (buggy) r_birth <- r_birth / (k + 1)
 
       if (runif(1) < min(1, r_birth)) {
         k <- k + 1

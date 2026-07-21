@@ -1,0 +1,558 @@
+---
+title: "Example assembly error (Primiceri)"
+format: html
+---
+
+## Setup
+
+We are looking at a simple iid normal model, but with a key prior difference that changes everything.
+
+The model is:
+
+$$
+y_i\mid \theta,\,\sigma^2 \overset{\text{iid}}{\sim}\text{N}(\theta,\,\sigma^2)
+$$
+With priors:
+
+$$
+\begin{aligned}
+\theta&\sim\text{N}(\bar{\theta}_0,\,v_0)\\
+\log\sigma^2&\sim\text{N}(a_0,\,b_0).
+\end{aligned}
+$$
+Regular Gibbs sampling won't work here because $p(\sigma ^2 \mid \theta,\,y_i)$ is now intractable. What do we do?
+
+Kim, Shepherd and Chib posit a new variable $s$ that makes this possible.
+
+First, we define $u = \log(\sigma ^2)$, so that $u \sim \text{N}(a_0, \,b_0)$.
+
+Standardize the likelihood:
+
+$$
+y_i \sim \text{N}(\theta,\,\sigma^2) \implies\frac{y_i-\theta}{\sigma}\sim\text{N}(0, 1).
+$$
+Let $z_i = \frac{y_i - \theta}{\sigma}$. Then
+
+$$
+z_i ^2 \sim \chi ^2(1)
+\\ \implies \log z_i ^2 \sim \log \chi ^2 (1)
+\\ \implies \log(y_i - \theta)^2-u \sim \log \chi^2(1)
+$$
+Given the log-chi-squared distribution, KSC's idea is to approximate this using a **mixture of normals**.
+
+The idea is to find $\pi_j, \mu_j, \tau_j ^2$ such that
+
+$$
+p(y_i \mid \theta,\,u) \approx \sum_{j=1}^J \pi_j \,\cdot\text{N}(u\,;\mu_j,\,\tau_j ^2)
+$$
+Then, let $s_i \in \{1,\cdots,J\}$ indicate **which component is active for each observation $i$**. I.e., $p(s_i = j) = \pi_j$. Then:
+
+$$
+p(u \mid \theta, \,y,\,s_i = j) = \text{N}(u\,;\mu_j,\,\tau_j ^2) \rightarrow \text{Gaussian (fully tractable).}
+$$
+Then the Gibbs sampler to target the posterior $p(\theta,\,u,\,s \mid y)$ takes 2 blocks, $u$ (or $\sigma^2$) and $(\theta,\,s)$:
+
+1. $u \mid \theta, \, s,\,y$
+2. $\theta,\,s\mid \sigma^2, \,y$, targeted via:
+   a. $\theta \mid \sigma^2, y$
+   b. $s \mid \sigma^2,\,\theta,\,y$
+   
+And as we know, Primiceri's error was using 3 blocks, something like:
+
+1. $u \mid \theta, s, y$
+2. $s \mid \theta, u, y$
+3. $\theta \mid u, y$
+
+where step 3 fails to condition on $s$, violating the Gibbs requirement that each block conditions on all others.
+
+Here are the marginal conditionals, i.e., what we need to sample from to target the posterior:
+
+### Marginal conditionals
+
+Using Bayes' rule, we obtain that:
+
+$$
+p(s_i \mid \theta,\,u,\,y) \propto \pi_j \cdot \exp\left(-\frac{(u - \mu_j)^2}{2\tau_j ^2}\right)
+$$
+The marginal on $u$ is obtained by normal-normal conjugacy:
+
+$$
+p(u \mid \theta,\,s,\,y) = \text{N}(\bar{a_n}, \bar{b_n}), \text{where } \newline
+\bar{b}_n = \left(\frac{1}{b_0} + \sum_{i=1}^n \frac{1}{\tau_{s_i}^2}\right)^{-1}, \newline
+\bar{a}_n = \bar{b}_n\left(\frac{a_0}{b_0} + \sum_{i=1}^n \frac{\mu_{s_i}}{\tau_{s_i}^2}\right)
+$$
+And finally, the marginal on $\theta$ doesn't even depend on $s$ (since $\theta$ was not involved in the KSC trick):
+
+$$
+p(\theta \mid u,\,y) = \text{N}(\bar{\theta_n}, \,v_n), \text{where }\newline
+v_n = \left(\frac{1}{v_0} + \frac{n}{e^u}\right)^{-1}, \newline
+\bar{\theta}_n = v_n\left(\frac{\bar{\theta}_0}{v_0} + \frac{\sum y_i}{e^u}\right).
+$$
+This gives us a full picture to implement and test the posterior through our frameworks.
+
+## Implementation
+
+We have an observable $y_i$ and unobservavbles $\theta,\,\sigma^2,\,s$. To put a prior on $s$ we use the values in Table 4 of KSC (1995):
+
+```{r}
+#| label: prior hyper params
+
+theta_bar_0 <- 0
+v_0 <- 2
+a_0 <- 1
+b_0 <- 1
+n <- 50
+
+#Table 4 constants:
+ksc_pi <- c(0.00730, 0.10556, 0.00002, 0.04395, 0.34001, 0.24566, 0.25750)
+ksc_mu  <- c(-10.12999, -3.97281, -8.56686, 2.77786, 0.61942, 1.79518, -1.08819)
+ksc_tau <- c(5.79596, 2.61369, 5.17950, 0.16735, 0.64009, 0.34023, 1.26261)
+
+prior_hyper_params_primiceri <- c(theta_bar_0 = 0, v_0 = 2, a_0 = 1, b_0 = 1, n = 10,
+                        ksc_pi = ksc_pi, ksc_mu, ksc_tau)
+
+```
+
+
+```{r}
+prior_sampler_primiceri <- function(prior_hyper_params){
+
+  theta_bar_0 <- as.numeric(prior_hyper_params["theta_bar_0"])
+  v_0         <- as.numeric(prior_hyper_params["v_0"])
+  a_0         <- as.numeric(prior_hyper_params["a_0"])
+  b_0         <- as.numeric(prior_hyper_params["b_0"])
+  n           <- as.numeric(prior_hyper_params["n"])
+  
+  theta  <- rnorm(1, mean = theta_bar_0, sd = sqrt(v_0))
+  u      <- rnorm(1, mean = a_0, sd = sqrt(b_0))
+  sigmasq <- exp(u)
+  s      <- sample(1:7, size = n, replace = TRUE, prob = ksc_pi)
+  
+  ret <- c(list(theta = theta, sigmasq = sigmasq), setNames(as.list(s), paste0("s_", seq_len(n))))
+  ret
+}
+```
+
+```{r}
+likelihood_sampler_primiceri <- function(n_obs, theta, prior_hyper_params){
+  rnorm(n_obs, mean = theta$theta, sd = sqrt(theta$sigmasq ))
+}
+```
+
+And now the tricky part. The structure goes like:
+1. initialize theta, u, s.
+For i in 1...n_draws: 
+  1. draw u | theta, s, y (normal conjugacy update using KSC)
+  2. draw theta | u, y (normal conjugacy using true likelihood, no KSC)
+  3. draw s_i | u, theta, y for each i (categorical draw over 7 components)
+  4. i <- i+1
+
+```{r}
+correct_posterior_sampler <- function(n_draws, y, prior_hyper_params,
+                                      init = NULL){
+  
+  # extract hyperparameters
+  theta_bar_0 <- prior_hyper_params["theta_bar_0"]
+  v_0         <- prior_hyper_params["v_0"]
+  a_0         <- prior_hyper_params["a_0"]
+  b_0         <- prior_hyper_params["b_0"]
+  n           <- length(y)
+  
+  # preallocate storage
+  THETA <- matrix(0, nrow = n_draws, ncol = 2 + n)
+  colnames(THETA) <- c("theta", "sigmasq", paste0("s_", 1:n))
+  
+  # initialize from init if provided, otherwise use data-based defaults
+  if (!is.null(init)) {
+    theta_cur <- as.numeric(init["theta"])
+    u_cur     <- log(as.numeric(init["sigmasq"]))
+    s_names   <- grep("^s_", names(init), value = TRUE)
+    s_cur     <- if (length(s_names) == n) as.numeric(init[s_names]) else rep(5, n)
+  } else {
+    theta_cur <- mean(y)
+    u_cur     <- log(var(y))
+    s_cur     <- rep(5, n)
+  }
+  
+  for (i in 1:n_draws) {
+    
+    # step 1: draw u | theta, s, y
+    z     <- log((y - theta_cur)^2 + 1e-20)
+    z_tilde <- z - (ksc_mu[s_cur] - 1.2704)   # mean-corrected observations
+    b_n   <- 1 / (1/b_0 + sum(1/ksc_tau[s_cur]))
+    a_n   <- b_n * (a_0/b_0 + sum(z_tilde / ksc_tau[s_cur]))
+    u_prop <- rnorm(1, mean = a_n, sd = sqrt(b_n))
+    
+    # true log-likelihood at proposed and current u
+    loglik_true <- function(u) {
+    sum(dnorm(y, mean = theta_cur, sd = sqrt(exp(u)), log = TRUE))
+    }
+
+    # mixture approximation log-likelihood at proposed and current u
+    loglik_mix <- function(u) {
+      # for each observation i, compute log(sum_j pi_j * N(z_i; u + m_j - 1.2704, v_j))
+      log_mix_i <- sapply(1:n, function(ii) {
+        log(sum(ksc_pi * dnorm(z[ii], mean = u + ksc_mu - 1.2704, sd = sqrt(ksc_tau))))
+      })
+    sum(log_mix_i)
+    }
+
+    # log acceptance ratio
+    log_alpha <- (loglik_true(u_prop) - loglik_true(u_cur)) -
+                 (loglik_mix(u_prop)  - loglik_mix(u_cur))
+
+    # MH step
+    if (log(runif(1)) < log_alpha) {
+      u_cur <- u_prop
+    }
+    
+    # step 2: draw theta | u, y
+    sigmasq_cur <- exp(u_cur)
+    v_n         <- 1 / (1/v_0 + n/sigmasq_cur)
+    theta_n     <- v_n * (theta_bar_0/v_0 + sum(y)/sigmasq_cur)
+    theta_cur   <- rnorm(1, mean = theta_n, sd = sqrt(v_n))
+    
+    # step 3: draw s | u, y
+    z <- log((y - theta_cur)^2 + 1e-20)  # recompute with updated theta_cur
+    s_cur <- sapply(1:n, function(ii) {
+    log_w <- log(ksc_pi) + dnorm(z[ii],
+                                  mean = u_cur + ksc_mu - 1.2704,
+                                  sd   = sqrt(ksc_tau),
+                                  log  = TRUE)
+    log_w <- log_w - max(log_w)
+    w <- exp(log_w) / sum(exp(log_w))
+    sample(1:7, size = 1, prob = w)
+    })
+    
+    # store
+    THETA[i, "theta"]            <- theta_cur
+    THETA[i, "sigmasq"]          <- exp(u_cur)
+    THETA[i, paste0("s_", 1:n)]  <- s_cur
+  }
+  
+  return(THETA)
+}
+```
+
+## Testing
+
+```{r}
+devtools::install_github("Bayescheck/bayescheckr")
+
+library(bayescheckr)
+```
+```{r}
+test_fns <- make_test_functions(
+  theta = function(theta, y) theta$theta,
+  
+  sigmasq = function(theta, y) exp(theta$sigmasq),
+  
+  product = function(theta, y) {
+    theta$theta * log(theta$sigmasq)
+  },
+  
+  log_likelihood = function(theta, y) {
+    sum(dnorm(y, mean = theta$theta, sd = sqrt(exp(theta$sigmasq)), log = TRUE))
+  },
+  
+  sum_s = function(theta, y) sum(unlist(theta[grep("^s_", names(theta))])),
+  
+  mean_s = function(theta, y) mean(unlist(theta[grep("^s_", names(theta))]))
+)
+```
+
+### Primiceri's erroneous sampler
+
+Primiceri's erroneous posterior sampler:
+
+```{r}
+set.seed(67)
+
+wrong_assembly_posterior_sampler <- function(n_draws, y, prior_hyper_params,
+                                    init = NULL){
+  
+  # extract hyperparameters
+  theta_bar_0 <- prior_hyper_params["theta_bar_0"]
+  v_0         <- prior_hyper_params["v_0"]
+  a_0         <- prior_hyper_params["a_0"]
+  b_0         <- prior_hyper_params["b_0"]
+  n           <- length(y)
+  
+  # preallocate storage
+  THETA <- matrix(0, nrow = n_draws, ncol = 2 + n)
+  colnames(THETA) <- c("theta", "sigmasq", paste0("s_", 1:n))
+  
+  # initialize from init if provided, otherwise use data-based defaults
+  if (!is.null(init)) {
+    theta_cur <- as.numeric(init["theta"])
+    u_cur     <- log(as.numeric(init["sigmasq"]))
+    s_names   <- grep("^s_", names(init), value = TRUE)
+    s_cur     <- if (length(s_names) == n) as.numeric(init[s_names]) else rep(5, n)
+  } else {
+    theta_cur <- mean(y)
+    u_cur     <- log(var(y))
+    s_cur     <- rep(5, n)
+  }
+  
+  for (i in 1:n_draws) {
+    
+    # step 1: draw u | theta, s, y
+    z     <- log((y - theta_cur)^2 + 1e-20)
+    z_tilde <- z - (ksc_mu[s_cur] - 1.2704)   # mean-corrected observations
+    b_n   <- 1 / (1/b_0 + sum(1/ksc_tau[s_cur]))
+    a_n   <- b_n * (a_0/b_0 + sum(z_tilde / ksc_tau[s_cur]))
+    u_prop <- rnorm(1, mean = a_n, sd = sqrt(b_n))
+    
+    # true log-likelihood at proposed and current u
+    loglik_true <- function(u) {
+    sum(dnorm(y, mean = theta_cur, sd = sqrt(exp(u)), log = TRUE))
+    }
+
+    # mixture approximation log-likelihood at proposed and current u
+    loglik_mix <- function(u) {
+      # for each observation i, compute log(sum_j pi_j * N(z_i; u + m_j - 1.2704, v_j))
+      log_mix_i <- sapply(1:n, function(ii) {
+        log(sum(ksc_pi * dnorm(z[ii], mean = u + ksc_mu - 1.2704, sd = sqrt(ksc_tau))))
+      })
+    sum(log_mix_i)
+    }
+
+    # log acceptance ratio
+    log_alpha <- (loglik_true(u_prop) - loglik_true(u_cur)) -
+                 (loglik_mix(u_prop)  - loglik_mix(u_cur))
+
+    # MH step
+    if (log(runif(1)) < log_alpha) {
+      u_cur <- u_prop
+    }
+    
+    # step 2: draw s | u, theta, y
+    z <- log((y - theta_cur)^2 + 1e-20)  # recompute with OUTDATED theta_cur
+    s_cur <- sapply(1:n, function(ii) {
+    log_w <- log(ksc_pi) + dnorm(z[ii],
+                                  mean = u_cur + ksc_mu - 1.2704,
+                                  sd   = sqrt(ksc_tau),
+                                  log  = TRUE)
+    log_w <- log_w - max(log_w)
+    w <- exp(log_w) / sum(exp(log_w))
+    sample(1:7, size = 1, prob = w)
+    })
+    
+    # step 3: draw theta | u, y
+    # not conditioned on s -> mistake
+    sigmasq_cur <- exp(u_cur)
+    v_n         <- 1 / (1/v_0 + n/sigmasq_cur)
+    theta_n     <- v_n * (theta_bar_0/v_0 + sum(y)/sigmasq_cur)
+    theta_cur   <- rnorm(1, mean = theta_n, sd = sqrt(v_n))
+    
+    # store
+    THETA[i, "theta"]   <- theta_cur
+    THETA[i, "sigmasq"] <- exp(u_cur)
+    THETA[i, paste0("s_", 1:n)]  <- s_cur
+  }
+  
+  return(THETA)
+}
+```
+
+# Geweke checks
+
+## On baseline correct sampler
+
+```{r}
+library(dplyr)
+
+primiceri_geweke_correct <- run_geweke(
+  prior_sampler = prior_sampler_primiceri,
+  likelihood_sampler = likelihood_sampler_primiceri,
+  posterior_sampler = correct_posterior_sampler,
+  prior_hyper_params = prior_hyper_params_primiceri,
+  n_obs = 10,
+  n_draws = 5000,
+  n_thin = 10,
+  n_burn = 1000,
+  parallelize = TRUE
+)
+```
+```{r}
+plot_geweke_tests(primiceri_geweke_correct, test_functions = test_fns,
+                  probs = seq(0.15, 0.85, by = 0.05))
+```
+```{r}
+correct_direct_draws <- primiceri_geweke_correct$direct
+correct_gibbs_draws <- primiceri_geweke_correct$gibbs
+
+c2st_primiceri_correct <- run_distributional_shift(correct_direct_draws,
+                                                   correct_gibbs_draws,
+                                                   classifier = "logistic")
+
+c2st_primiceri_correct
+```
+
+### Visualization
+
+```{r}
+#| label: fit-viz-primiceri
+
+viz_primiceri_correct <- fit_c2st_for_viz(
+  correct_direct_draws$theta,
+  correct_gibbs_draws$theta,
+  classifier = default_xgb_classifier(nrounds = 200),
+  seed = 1
+)
+
+X_mat_primiceri_correct <- as.matrix(viz_primiceri_correct$Xtest)
+sum(duplicated(X_mat_primiceri_correct))
+```
+(The code chunk above is simply checking that there are no duplicates in the test matrix X - if there were, it would cause problems for the t-SNE method for visualization.)
+
+```{r}
+#| label: run-tsne-primiceri
+
+set.seed(1)
+library(Rtsne)
+tsne_out_primiceri_correct <- Rtsne(X_mat_primiceri_correct, dims = 2, perplexity = 30,
+                             verbose = FALSE, check_duplicates = FALSE)
+
+tsne_df_primiceri <- data.frame(
+  tsne1 = tsne_out_primiceri_correct$Y[, 1],
+  tsne2 = tsne_out_primiceri_correct$Y[, 2],
+  source = factor(viz_primiceri_correct$ytest, levels = c(0, 1), labels = c("direct (A)", "gibbs (B)"))
+)
+```
+
+```{r}
+#| label: plot-tsne-primiceri
+
+library(ggplot2)
+
+ggplot(tsne_df_primiceri, aes(x = tsne1, y = tsne2, color = source)) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  labs(title = "t-SNE embedding of theta-space -- Primiceri corrected (baseline)") +
+  theme_minimal()
+```
+
+## On wrong assembly sampler
+
+```{r}
+library(dplyr)
+
+primiceri_geweke_wrong <- run_geweke(
+  prior_sampler = prior_sampler_primiceri,
+  likelihood_sampler = likelihood_sampler_primiceri,
+  posterior_sampler = wrong_assembly_posterior_sampler,
+  prior_hyper_params = prior_hyper_params_primiceri,
+  n_obs = 10,
+  n_draws = 5000,
+  parallelize = TRUE
+)
+```
+```{r}
+plot_geweke_tests(primiceri_geweke_wrong, test_functions = test_fns)
+```
+```{r}
+wrong_direct_draws <- primiceri_geweke_wrong$direct
+wrong_gibbs_draws <- primiceri_geweke_wrong$gibbs
+
+c2st_primiceri_wrong <- run_distributional_shift(wrong_direct_draws,
+                                                   wrong_gibbs_draws,
+                                                   classifier = "logistic")
+
+c2st_primiceri_wrong
+```
+
+### Visualization
+
+```{r}
+#| label: fit-viz-primiceri
+
+viz_primiceri_wrong <- fit_c2st_for_viz(
+  wrong_direct_draws$theta,
+  wrong_gibbs_draws$theta,
+  classifier = default_xgb_classifier(nrounds = 200),
+  seed = 1
+)
+
+X_mat_primiceri_wrong <- as.matrix(viz_primiceri_wrong$Xtest)
+sum(duplicated(X_mat_primiceri_wrong))
+```
+```{r}
+#| label: run-tsne-primiceri
+
+set.seed(1)
+library(Rtsne)
+tsne_out_primiceri_wrong <- Rtsne(X_mat_primiceri_wrong, dims = 2, perplexity = 30,
+                             verbose = FALSE, check_duplicates = FALSE)
+
+tsne_df_primiceri_wrong <- data.frame(
+  tsne1 = tsne_out_primiceri_wrong$Y[, 1],
+  tsne2 = tsne_out_primiceri_wrong$Y[, 2],
+  source = factor(viz_primiceri_wrong$ytest, levels = c(0, 1), labels = c("direct (A)", "gibbs (B)"))
+)
+```
+
+```{r}
+#| label: plot-tsne-primiceri
+
+ggplot(tsne_df_primiceri_wrong, aes(x = tsne1, y = tsne2, color = source)) +
+  geom_point(alpha = 0.4, size = 0.8) +
+  labs(title = "t-SNE embedding of theta-space -- Primiceri original error") +
+  theme_minimal()
+```
+A comment: Geweke checks are not the best for this specific problem. We have tried increasing n_draws, n_burnin and n_thin dramatically and it did not significantly improve the plots, the Geweke statistics or the C2ST statistics.
+Fortunately, our package offers multiple independent methods of validation. Below is the SBC validation implemented on this problem.
+
+# SBC checks
+
+## On baseline correct sampler
+
+Now we use SBC, a different, independent validation method:
+
+```{r}
+set.seed(234)
+
+primiceri_sbc_correct <- run_sbc(
+  prior_sampler = prior_sampler_primiceri,
+  likelihood_sampler = likelihood_sampler_primiceri,
+  posterior_sampler = correct_posterior_sampler,
+  n_sims = 500,
+  n_obs = 10,
+  n_draws = 2000,
+  prior_hyper_params = prior_hyper_params_primiceri,
+  globals = c("correct_posterior_sampler", "ksc_tau", "ksc_mu", "ksc_pi"),
+  test_fns = test_fns,
+  parallelize = TRUE
+)
+```
+```{r}
+SBC::plot_rank_hist(primiceri_sbc_correct$sbc_result)
+SBC::plot_ecdf_diff(primiceri_sbc_correct$sbc_result)
+```
+
+## On the wrong assembly error
+
+```{r}
+primiceri_sbc_wrong <- run_sbc(
+  prior_sampler = prior_sampler_primiceri,
+  likelihood_sampler = likelihood_sampler_primiceri,
+  posterior_sampler = wrong_assembly_posterior_sampler,
+  n_sims = 500,
+  n_obs = 10,
+  n_draws = 2000,
+  prior_hyper_params = prior_hyper_params_primiceri,
+  globals = c("wrong_assembly_posterior_sampler", "ksc_tau", "ksc_mu", "ksc_pi"),
+  test_fns = test_fns,
+  parallelize = TRUE
+)
+```
+
+```{r}
+SBC::plot_rank_hist(primiceri_sbc_wrong$sbc_result)
+SBC::plot_ecdf_diff(primiceri_sbc_wrong$sbc_result)
+```
+
+SBC checks were a lot clearer and more informative for this problem. There is a clear difference between the histograms & ECDF plots of the correct sampler and the wrong assembly one, flagging the error. The only variable that defies this is `s`, potentially due to being a discrete variable taking on only values {1, ..., 7}, leading to higher variance and noise.
+
+
+
+

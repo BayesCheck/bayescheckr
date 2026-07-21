@@ -398,7 +398,8 @@ doucet_likelihood_sampler <- function(n_obs, theta, prior_hyper_params) {
 doucet_posterior_sampler <- function(n_draws,
                                      y,
                                      prior_hyper_params,
-                                     init = NULL) {
+                                     init = NULL,
+                                     buggy = FALSE) {
   hyper <- prior_hyper_params
   n_obs <- length(y)
   k_max <- hyper$k_max
@@ -445,6 +446,8 @@ doucet_posterior_sampler <- function(n_draws,
 
       r_birth <- ((hyper$gamma0 + s_old) / (hyper$gamma0 + s_prop))^((n_obs + hyper$v0) / 2) *
         1 / (1 + hyper$delta2)
+      
+      if (buggy) r_birth <- r_birth / (k + 1)
 
       if (runif(1) < min(1, r_birth)) {
         k <- k + 1

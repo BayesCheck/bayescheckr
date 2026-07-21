@@ -199,7 +199,7 @@ n_draws <- 500
 The function `run_geweke` creates both direct and Gibbs draws from the joint.
 
 ```{r}
-gibbs_results <- run_geweke(
+geweke_reults <- run_geweke(
   prior_sampler = prior_sampler,
   likelihood_sampler = likelihood_sampler,
   posterior_sampler = posterior_sampler,
@@ -211,21 +211,22 @@ gibbs_results <- run_geweke(
   parallelize = TRUE
 )
 
-gibbs_results$gibbs$wide
+geweke_reults$gibbs$wide
 ```
 
 ### Geweke on test functions
 
 ```{r}
-tabulate_geweke_tests(draws = gibbs_results,
+tabulate_geweke_tests(geweke_reults$direct,
+                      geweke_reults$gibbs,
                       tests_applied = FALSE,
                       test_functions = test_fns)
 ```
 
 ```{r}
-plot_geweke_tests(direct_draws = gibbs_results$direct,
-                 gibbs_draws = gibbs_results$gibbs,
-                 test_functions = test_fns)
+plot_geweke_tests(geweke_reults$direct,
+                  geweke_reults$gibbs,
+                  test_functions = test_fns)
 ```
 
 ## SBC checks

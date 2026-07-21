@@ -384,7 +384,7 @@ correct_gibbs_draws <- primiceri_geweke_correct$gibbs
 
 c2st_primiceri_correct <- run_distributional_shift(correct_direct_draws,
                                                    correct_gibbs_draws,
-                                                   classifier = "logistic")
+                                                   classifier = default_xgb_classifier(nrounds = 100))
 
 c2st_primiceri_correct
 ```
@@ -397,7 +397,7 @@ c2st_primiceri_correct
 viz_primiceri_correct <- fit_c2st_for_viz(
   correct_direct_draws$theta,
   correct_gibbs_draws$theta,
-  classifier = default_xgb_classifier(n_rounds = 200),
+  classifier = default_xgb_classifier(nrounds = 200),
   seed = 1
 )
 
@@ -456,7 +456,7 @@ wrong_gibbs_draws <- primiceri_geweke_wrong$gibbs
 
 c2st_primiceri_wrong <- run_distributional_shift(wrong_direct_draws,
                                                    wrong_gibbs_draws,
-                                                   classifier = "logistic")
+                                                   classifier = default_xgb_classifier(nrounds = 100))
 
 c2st_primiceri_wrong
 ```
@@ -469,7 +469,7 @@ c2st_primiceri_wrong
 viz_primiceri_wrong <- fit_c2st_for_viz(
   wrong_direct_draws$theta,
   wrong_gibbs_draws$theta,
-  classifier = default_xgb_classifier(n_rounds = 200),
+  classifier = default_xgb_classifier(nrounds = 200),
   seed = 1
 )
 

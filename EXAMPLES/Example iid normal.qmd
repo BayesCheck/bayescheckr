@@ -2,7 +2,7 @@
 title: "Example iid normal - start here!"
 format: html
 ---
-set seed first
+Set the seed first.
 ```{r}
 #| label: set-seed
 
@@ -14,8 +14,15 @@ Load our package:
 ```{r}
 #| label: load-our-code
 
-devtools::load_all()
+# some options:
+# 
+# devtools::load_all()
+# 
+# OR:
+# devtools::install_github("BayesCheck/bayescheckr")
+# library(bayescheckr)
 ```
+
 ## Problem setup
 
 This toy example is the iid normal, with the model being `n` iid draws:

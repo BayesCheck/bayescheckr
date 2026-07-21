@@ -101,6 +101,7 @@ run_sbc <- function(prior_sampler,
   dataset <- SBC::generate_datasets(generator, n_sims)
 
   # ---- backend ----
+
   backend <- SBC::SBC_backend_function(
     func = function(generated) {
       draws_raw <- posterior_sampler(
@@ -136,12 +137,13 @@ run_sbc <- function(prior_sampler,
       for (j in seq_along(test_fns)) {
         f <- test_fns[[j]]
         result[, j] <- vapply(draws_list,
-                              function(th) f(th, generated$y),
+                              function(th) f(as_theta(th), generated$y),
                               numeric(1))
       }
       posterior::as_draws_matrix(result)
     }
   )
+
 
 
   if (parallelize == TRUE) {

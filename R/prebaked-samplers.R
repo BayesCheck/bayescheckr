@@ -467,6 +467,118 @@ primiceri_likelihood_sampler <- function(n_obs, theta, prior_hyper_params){
   rnorm(n_obs, mean = theta[["theta"]], sd = sqrt(theta[["sigmasq"]]))
 }
 
+#' @export
+primiceri_posterior_sampler <- function(n_draws,
+                              y,
+                              prior_hyper_params,
+                              init = NULL,
+                              buggy = FALSE){
+
+  # extract hyperparameters
+  theta_bar_0 <- prior_hyper_params["theta_bar_0"]
+  v_0         <- prior_hyper_params["v_0"]
+  a_0         <- prior_hyper_params["a_0"]
+  b_0         <- prior_hyper_params["b_0"]
+  n           <- length(y)
+
+  # preallocate storage
+  THETA <- matrix(0, nrow = n_draws, ncol = 2 + n)
+  colnames(THETA) <- c("theta", "sigmasq", paste0("s_", 1:n))
+
+  # initialize from init if provided, otherwise use data-based defaults
+  if (!is.null(init)) {
+    theta_cur <- as.numeric(init["theta"])
+    u_cur     <- log(as.numeric(init["sigmasq"]))
+    s_names   <- grep("^s_", names(init), value = TRUE)
+    s_cur     <- if (length(s_names) == n) as.numeric(init[s_names]) else rep(5, n)
+  } else {
+    theta_cur <- mean(y)
+    u_cur     <- log(var(y))
+    s_cur     <- rep(5, n)
+  }
+
+  for (i in 1:n_draws) {
+
+    # step 1: draw u | theta, s, y
+    z     <- log((y - theta_cur)^2 + 1e-20)
+    z_tilde <- z - (ksc_mu[s_cur] - 1.2704)   # mean-corrected observations
+    b_n   <- 1 / (1/b_0 + sum(1/ksc_tau[s_cur]))
+    a_n   <- b_n * (a_0/b_0 + sum(z_tilde / ksc_tau[s_cur]))
+    u_prop <- rnorm(1, mean = a_n, sd = sqrt(b_n))
+
+    # true log-likelihood at proposed and current u
+    loglik_true <- function(u) {
+      sum(dnorm(y, mean = theta_cur, sd = sqrt(exp(u)), log = TRUE))
+    }
+
+    # mixture approximation log-likelihood at proposed and current u
+    loglik_mix <- function(u) {
+      # for each observation i, compute log(sum_j pi_j * N(z_i; u + m_j - 1.2704, v_j))
+      log_mix_i <- sapply(1:n, function(ii) {
+        log(sum(ksc_pi * dnorm(z[ii], mean = u + ksc_mu - 1.2704, sd = sqrt(ksc_tau))))
+      })
+      sum(log_mix_i)
+    }
+
+    # log acceptance ratio
+    log_alpha <- (loglik_true(u_prop) - loglik_true(u_cur)) -
+      (loglik_mix(u_prop)  - loglik_mix(u_cur))
+
+    # MH step
+    if (log(runif(1)) < log_alpha) {
+      u_cur <- u_prop
+    }
+
+    if (buggy) {
+      # step 2: draw s | u, theta, y
+      z <- log((y - theta_cur)^2 + 1e-20)  # recompute with OUTDATED theta_cur
+      s_cur <- sapply(1:n, function(ii) {
+        log_w <- log(ksc_pi) + dnorm(z[ii],
+                                     mean = u_cur + ksc_mu - 1.2704,
+                                     sd   = sqrt(ksc_tau),
+                                     log  = TRUE)
+        log_w <- log_w - max(log_w)
+        w <- exp(log_w) / sum(exp(log_w))
+        sample(1:7, size = 1, prob = w)
+      })
+
+      # step 3: draw theta | u, y
+      # not conditioned on s -> mistake
+      sigmasq_cur <- exp(u_cur)
+      v_n         <- 1 / (1/v_0 + n/sigmasq_cur)
+      theta_n     <- v_n * (theta_bar_0/v_0 + sum(y)/sigmasq_cur)
+      theta_cur   <- rnorm(1, mean = theta_n, sd = sqrt(v_n))
+    }
+
+    else {
+      # step 2: draw theta | u, y
+      sigmasq_cur <- exp(u_cur)
+      v_n         <- 1 / (1/v_0 + n/sigmasq_cur)
+      theta_n     <- v_n * (theta_bar_0/v_0 + sum(y)/sigmasq_cur)
+      theta_cur   <- rnorm(1, mean = theta_n, sd = sqrt(v_n))
+
+      # step 3: draw s | u, y
+      z <- log((y - theta_cur)^2 + 1e-20)  # recompute with updated theta_cur
+      s_cur <- sapply(1:n, function(ii) {
+        log_w <- log(ksc_pi) + dnorm(z[ii],
+                                     mean = u_cur + ksc_mu - 1.2704,
+                                     sd   = sqrt(ksc_tau),
+                                     log  = TRUE)
+        log_w <- log_w - max(log_w)
+        w <- exp(log_w) / sum(exp(log_w))
+        sample(1:7, size = 1, prob = w)
+      })
+    }
+
+    # store
+    THETA[i, "theta"]            <- theta_cur
+    THETA[i, "sigmasq"]          <- exp(u_cur)
+    THETA[i, paste0("s_", 1:n)]  <- s_cur
+  }
+
+  return(THETA)
+}
+
 .make_sampler_registry <- function() {
   list(
     prior = list(

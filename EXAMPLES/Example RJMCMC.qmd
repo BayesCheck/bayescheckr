@@ -606,6 +606,52 @@ The `run_sbc()` function computes rank of draws from the posterior and lets us c
 set.seed(123)
 
 sbc_results <- run_sbc(
+  prior_sampler = prior_sampler,
+  likelihood_sampler = likelihood_sampler,
+  posterior_sampler = posterior_sampler,
+  n_obs = n_obs,
+  n_draws = 500,
+  n_sims = 500,
+  test_fns = test_fns,
+  prior_hyper_params = prior_hyper_params,
+  parallelize = TRUE,
+  globals = c("as_theta",
+              "doucet_prior_sampler",
+              "doucet_likelihood_sampler",
+              "doucet_posterior_sampler",
+              "doucet_build_D",
+              "doucet_yPy",
+              "doucet_inner_update")
+)
+
+buggy_sbc_results <- run_sbc(
+  prior_sampler = prior_sampler,
+  likelihood_sampler = likelihood_sampler,
+  posterior_sampler = purrr::partial(posterior_sampler, buggy = TRUE),
+  n_obs = n_obs,
+  n_draws = 500,
+  n_sims = 500,
+  test_fns = test_fns,
+  prior_hyper_params = prior_hyper_params,
+  parallelize = TRUE,
+  globals = c("as_theta",
+              "doucet_prior_sampler",
+              "doucet_likelihood_sampler",
+              "doucet_posterior_sampler",
+              "doucet_build_D",
+              "doucet_yPy",
+              "doucet_inner_update")
+)
+```
+
+We can also use the prebaked samplers here.
+```{r}
+#| label: prebaked-sbc
+#| eval: false
+
+set.seed(123)
+
+sbc_results <- run_sbc(
   prior_sampler = doucet_prior_sampler,
   likelihood_sampler = doucet_likelihood_sampler,
   posterior_sampler = doucet_posterior_sampler,
@@ -624,28 +670,43 @@ sbc_results <- run_sbc(
               "doucet_inner_update")
 )
 
-# grab one draw and test manually
-one_draw <- as.list(doucet_posterior_sampler(
-  n_draws = 1,
-  y = rnorm(64),
-  prior_hyper_params = prior_hyper_params
-)[1, ])
-
-one_y <- rnorm(64)
-
-for (nm in names(test_fns)) {
-  result <- tryCatch(
-    test_fns[[nm]](as_theta(one_draw), one_y),
-    error = function(e) paste("ERROR:", e$message)
-  )
-  cat(nm, "-> class:", class(result), "| length:", length(result), "\n")
-}
+buggy_sbc_results <- run_sbc(
+  prior_sampler = doucet_prior_sampler,
+  likelihood_sampler = doucet_likelihood_sampler,
+  posterior_sampler = purrr::partial(doucet_posterior_sampler, buggy = TRUE),
+  n_obs = n_obs,
+  n_draws = 500,
+  n_sims = 500,
+  test_fns = test_fns,
+  prior_hyper_params = prior_hyper_params,
+  parallelize = TRUE,
+  globals = c("as_theta",
+              "doucet_prior_sampler",
+              "doucet_likelihood_sampler",
+              "doucet_posterior_sampler",
+              "doucet_build_D",
+              "doucet_yPy",
+              "doucet_inner_update")
+)
 ```
-Let's check the marginals:
+
+Let's plot:
 ```{r}
+#| label: plot-correct-sbc
+
 SBC::plot_rank_hist(sbc_results$sbc_result)
 SBC::plot_ecdf(sbc_results$sbc_result)
 SBC::plot_ecdf_diff(sbc_results$sbc_result)
 ```
 
-As expected, all fitting within the blue bands.
+As expected, all fitting within the blue bands. For the buggy results, the plots tell a different story.
+
+```{r}
+#| label: plot-buggy-sbc
+
+SBC::plot_rank_hist(buggy_sbc_results$sbc_result)
+SBC::plot_ecdf(buggy_sbc_results$sbc_result)
+SBC::plot_ecdf_diff(buggy_sbc_results$sbc_result)
+```
+
+The plots correctly raise the alarm that the sampler is flawed.

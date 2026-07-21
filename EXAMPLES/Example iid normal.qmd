@@ -156,11 +156,13 @@ Alternatively, use the tests_applied parameter if you ever need to separate the 
 #| label: example-tests-applied-workflow
 #| eval: true
 
-geweke_test_matrix <- apply_test_functions(direct = doucet_results$direct,
-                                           gibbs = doucet_results$gibbs,
-                                           tests_functions = test_fns)
+geweke_test_matrix <- apply_test_functions(
+    direct_draws = direct_draws,
+    gibbs_draws = gibbs_draws,
+    test_functions = test_fns
+)
 
-tabulate_geweke_tests(draws = geweke_test_matrix, tests_applied = TRUE)
+tabulate_geweke_tests(draws = geweke_test_matrix, test_functions = test_fns, tests_applied = TRUE)
 ```
 
 The output is a table! Cute.
@@ -200,11 +202,12 @@ SBC::plot_rank_hist(res$sbc_result)
 ```{r}
 SBC::plot_ecdf_diff(res$sbc_result)
 ```
+
 ```{r}
 result <- run_distributional_shift(
   direct_draws = direct_draws,
   gibbs_draws  = gibbs_draws,
-  classifier  = .default_xgb_classifier(nrounds = 100)
+  classifier  = default_xgb_classifier(nrounds = 100)
 )
 
 # ------------------------------------------------------------------------------

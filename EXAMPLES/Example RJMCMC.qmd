@@ -569,18 +569,18 @@ Using the `$direct` and `$gibbs` draws from `run_geweke()`, we can use the funct
 
 c2st_results <- run_distributional_shift(doucet_results$direct, 
                                          doucet_results$gibbs,
-                                         classifier = "xgboost",
+                                         classifier = default_xgb_classifier(nrounds = 100),
                                          train_frac = 0.8,
-                                         n_rounds = 100,
+                                         nrounds = 100,
                                          n_perm = 20,
                                          alpha = 0.05 #default significance level
                                          )
 
 buggy_c2st_results <- run_distributional_shift(buggy_doucet_results$direct, 
                                                buggy_doucet_results$gibbs,
-                                               classifier = "xgboost",
+                                               classifier = default_xgb_classifier(nrounds = 100),
                                                train_frac = 0.8,
-                                               n_rounds = 100,
+                                               nrounds = 100,
                                                n_perm = 20,
                                                alpha = 0.05 #default significance level
                                                )

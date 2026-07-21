@@ -25,7 +25,8 @@ Imports:
     xgboost, 
     cluster,
     patchwork,
-    tidymodels
+    tidymodels,
+    randomForest
 Remotes:
     hyunjimoon/SBC
 

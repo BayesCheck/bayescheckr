@@ -74,11 +74,9 @@ run_sbc <- function(prior_sampler,
 
   # ---- validate prior_sampler output: must be a named list ----
   theta_test <- prior_sampler(prior_hyper_params)
-  if (!is.list(theta_test))
-    stop("prior_sampler must return a named list, ",
-         "e.g. list(mu = mu, sigmasq = sigma2).")
   if (is.null(names(theta_test)) || any(names(theta_test) == ""))
-    stop("prior_sampler must return a *named* list: every element needs a name.")
+    stop("prior_sampler must return a named vector or list with all elements named. ",
+         "e.g. c(mu = mu, sigmasq = sigma2) or list(mu = mu, sigmasq = sigma2).")
 
 
   y_test <- likelihood_sampler(n_obs, theta_test, prior_hyper_params)

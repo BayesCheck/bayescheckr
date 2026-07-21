@@ -402,7 +402,7 @@ The function `run_geweke()` creates both direct and Gibbs draws from the joint.
 ```{r}
 #| label: run-geweke
 #| warning: false
-doucet_results <- bayescheckr::run_geweke(
+geweke_results <- bayescheckr::run_geweke(
   prior_sampler = prior_sampler,
   likelihood_sampler = likelihood_sampler,
   posterior_sampler = posterior_sampler,
@@ -414,7 +414,7 @@ doucet_results <- bayescheckr::run_geweke(
   parallelize = TRUE
 )
 
-buggy_doucet_results <- bayescheckr::run_geweke(
+buggy_geweke_results <- bayescheckr::run_geweke(
   prior_sampler = prior_sampler,
   likelihood_sampler = likelihood_sampler,
   posterior_sampler = purrr::partial(posterior_sampler, buggy = TRUE),
@@ -434,8 +434,8 @@ Below show how to access the different draws in `wide` format.
 ```{r}
 #| label: display-run-geweke-results
 
-doucet_results$direct$wide
-buggy_doucet_results$gibbs$wide
+geweke_results$direct$wide
+buggy_geweke_results$gibbs$wide
 ```
 If you want to implement this example without hand-coding the samplers like above, we have included built-in Doucet samplers in the package. You can call them as follows:
 
@@ -455,7 +455,7 @@ bayescheckr::run_geweke(
   parallelize = TRUE
 )
 
-buggy_doucet_results <- bayescheckr::run_geweke(
+buggy_geweke_results <- bayescheckr::run_geweke(
   prior_sampler = prior_sampler,
   likelihood_sampler = likelihood_sampler,
   posterior_sampler = purrr::partial(doucet_posterior_sampler, buggy = TRUE),
@@ -528,19 +528,21 @@ And now we can apply them, running three tests on the test function-applied valu
 ```{r}
 #| label: tabulate-geweke-tests
 
-tabulate_geweke_tests(draws = doucet_results,
+tabulate_geweke_tests(geweke_results$direct,
+                      geweke_results$gibbs,
                       tests_applied = FALSE,
                       test_functions = test_fns)
 
-tabulate_geweke_tests(draws = buggy_doucet_results,
+tabulate_geweke_tests(buggy_geweke_results$direct,
+                      buggy_geweke_results$gibbs,
                       tests_applied = FALSE,
                       test_functions = test_fns)
 
 # Alternatively, use the tests_applied parameter if you ever need to separate
 # the test function application and analysis steps:
 # 
-# geweke_test_matrix <- apply_test_functions(direct = doucet_results$direct,
-#                                            gibbs = doucet_results$gibbs,
+# geweke_test_matrix <- apply_test_functions(direct = geweke_results$direct,
+#                                            gibbs = geweke_results$gibbs,
 #                                            tests_functions = test_fns)
 # 
 # tabulate_geweke_tests(draws = geweke_test_matrix, tests_applied = TRUE)
@@ -550,10 +552,12 @@ Sometimes quantifying isn't enough. If you want to visually compare the direct (
 ```{r}
 #| label: plot-geweke-tests
 
-plot_geweke_tests(draws = doucet_results,
-                 test_functions = test_fns)
+plot_geweke_tests(geweke_results$direct,
+                  geweke_results$gibbs,
+                  test_functions = test_fns)
 
-plot_geweke_tests(draws = buggy_doucet_results,
+plot_geweke_tests(buggy_geweke_results$direct,
+                  buggy_geweke_results$gibbs,
                   test_functions = test_fns)
 ```
 We can see that the draws from the buggy sampler look a lot worse, especially the product of omega values and the log-likelihood (which is a good workhorse test function to implement for any model you may have).
@@ -567,8 +571,8 @@ Using the `$direct` and `$gibbs` draws from `run_geweke()`, we can use the funct
 ```{r}
 #| label: run-dist-shift
 
-c2st_results <- run_distributional_shift(doucet_results$direct, 
-                                         doucet_results$gibbs,
+c2st_results <- run_distributional_shift(geweke_results$direct, 
+                                         geweke_results$gibbs,
                                          classifier = default_xgb_classifier(nrounds = 100),
                                          train_frac = 0.8,
                                          nrounds = 100,
@@ -576,8 +580,8 @@ c2st_results <- run_distributional_shift(doucet_results$direct,
                                          alpha = 0.05 #default significance level
                                          )
 
-buggy_c2st_results <- run_distributional_shift(buggy_doucet_results$direct, 
-                                               buggy_doucet_results$gibbs,
+buggy_c2st_results <- run_distributional_shift(buggy_geweke_results$direct, 
+                                               buggy_geweke_results$gibbs,
                                                classifier = default_xgb_classifier(nrounds = 100),
                                                train_frac = 0.8,
                                                nrounds = 100,

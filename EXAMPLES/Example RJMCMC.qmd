@@ -312,8 +312,8 @@ posterior_sampler <- function(n_draws,
     c_prob * min(1, dpois(k - 1, Lambda) / dpois(k, Lambda))
   }
 
-  col_names <- c("k", paste0("omega_", 1:k_max),
-                 paste0("a_c", 1:k_max), paste0("a_s", 1:k_max),
+  col_names <- c("k", paste0("omega", 1:k_max),
+                 paste0("a", 1:(2*k_max)),
                  "sigma2")
   out <- matrix(NA_real_, nrow = n_draws, ncol = length(col_names),
                 dimnames = list(NULL, col_names))
@@ -394,7 +394,7 @@ Let's set:
 
 ```{r}
 n_obs <- 64
-n_draws <- 500
+n_draws <- 1e4
 ```
 
 The function `run_geweke()` creates both direct and Gibbs draws from the joint.
@@ -506,7 +506,7 @@ a_prod = function(theta, y) {
     k <- theta[["k"]]
     if (k == 0) return(0)
 
-    a <- theta[paste0("a", 1:(2 * k))]
+    a <- as.numeric(theta[paste0("a", 1:(2 * k))])
     prod(a, na.rm = TRUE)
 }
 
@@ -514,10 +514,10 @@ omega_prod = function(theta, y) {
     k <- theta[["k"]]
     if (k == 0) return(0)
     else if (is.na(k)) return(NA)
-    prod(theta[paste0("omega", 1:k)], na.rm = TRUE)
+    prod(as.numeric(theta[paste0("omega", 1:k)]), na.rm = TRUE)
   }
 
-test_fns <- make_test_functions(k_marg = function(theta, y) theta["k"], #marginal of k
+test_fns <- make_test_functions(k_marg = function(theta, y) theta[["k"]], #marginal of k
                                 omega_prod = omega_prod,
                                 log_likelihood = log_lik, #log likelihood defined above
                                 a_prod = a_prod)
@@ -571,7 +571,7 @@ c2st_results <- run_distributional_shift(doucet_results$direct,
                                          doucet_results$gibbs,
                                          classifier = "xgboost",
                                          train_frac = 0.8,
-                                         nrounds = 100,
+                                         n_rounds = 100,
                                          n_perm = 20,
                                          alpha = 0.05 #default significance level
                                          )
@@ -580,6 +580,7 @@ buggy_c2st_results <- run_distributional_shift(buggy_doucet_results$direct,
                                                buggy_doucet_results$gibbs,
                                                classifier = "xgboost",
                                                train_frac = 0.8,
+                                               n_rounds = 100,
                                                n_perm = 20,
                                                alpha = 0.05 #default significance level
                                                )
@@ -605,16 +606,40 @@ The `run_sbc()` function computes rank of draws from the posterior and lets us c
 set.seed(123)
 
 sbc_results <- run_sbc(
-  prior_sampler = prior_sampler,
-  likelihood_sampler = likelihood_sampler,
-  posterior_sampler = posterior_sampler,
+  prior_sampler = doucet_prior_sampler,
+  likelihood_sampler = doucet_likelihood_sampler,
+  posterior_sampler = doucet_posterior_sampler,
   n_obs = n_obs,
-  n_draws = 2000,
+  n_draws = 500,
   n_sims = 500,
   test_fns = test_fns,
   prior_hyper_params = prior_hyper_params,
-  parallelize = TRUE
+  parallelize = TRUE,
+  globals = c("as_theta",
+              "doucet_prior_sampler",
+              "doucet_likelihood_sampler",
+              "doucet_posterior_sampler",
+              "doucet_build_D",
+              "doucet_yPy",
+              "doucet_inner_update")
 )
+
+# grab one draw and test manually
+one_draw <- as.list(doucet_posterior_sampler(
+  n_draws = 1,
+  y = rnorm(64),
+  prior_hyper_params = prior_hyper_params
+)[1, ])
+
+one_y <- rnorm(64)
+
+for (nm in names(test_fns)) {
+  result <- tryCatch(
+    test_fns[[nm]](as_theta(one_draw), one_y),
+    error = function(e) paste("ERROR:", e$message)
+  )
+  cat(nm, "-> class:", class(result), "| length:", length(result), "\n")
+}
 ```
 Let's check the marginals:
 ```{r}

@@ -66,71 +66,74 @@ default_xgb_classifier <- function(nrounds = 100) {
   )
 }
 
-# ---- random forest classifier: opt-in, matches the old default behavior ----------
+# ---- random forest classifier -----------------------------------------------
+
 #' default_rforest_classifier
 #'
-#' Runs random forest classifier.
+#' Runs a Random Forest classifier.
 #'
-#' @param nrounds replace this
-#' @return returns a list of two functions: train and test.
+#' @param ntree Number of trees.
+#' @return returns a list of two functions: train and predict.
 #' @export
-default_rforest_classifier <- function(...) {
-  #need to replace all of this
+default_rforest_classifier <- function(ntree = 500) {
   list(
     train = function(X, y) {
-      dtrain <- xgboost::xgb.DMatrix(as.matrix(X), label = y)
-      xgboost::xgb.train(
-        params = list(
-          objective        = "binary:logistic",
-          eval_metric      = "logloss",
-          max_depth        = 4,
-          eta              = .1,
-          subsample        = .8,
-          colsample_bytree = .8
-        ),
-        data    = dtrain,
-        nrounds = nrounds,
-        verbose = 0
+      df <- data.frame(X, .y = factor(y))
+      randomForest::randomForest(
+        .y ~ .,
+        data = df,
+        ntree = ntree
       )
     },
     predict = function(fit, newX) {
-      predict(fit, xgboost::xgb.DMatrix(as.matrix(newX)))
+      probs <- predict(
+        fit,
+        newdata = as.data.frame(newX),
+        type = "prob"
+      )
+      probs[, "1"]
     }
   )
 }
 
-# ---- Support Vector Machine classifier: opt-in, matches the old default behavior ----------
+# ---- support vector machine classifier --------------------------------------
+
 #' default_svm_classifier
 #'
-#' Runs Support Vector Machine classifier.
+#' Runs a Support Vector Machine classifier.
 #'
-#' @param nrounds replace this
-#' @return returns a list of two functions: train and test.
+#' @param kernel Kernel type.
+#' @param cost Cost parameter.
+#' @param gamma Gamma parameter (used for radial kernels).
+#' @return returns a list of two functions: train and predict.
 #' @export
-default_svm_classifier <- function(...) {
-  #need to replace all of this
+default_svm_classifier <- function(kernel = "radial",
+                                   cost = 1,
+                                   gamma = NULL) {
   list(
     train = function(X, y) {
-      dtrain <- xgboost::xgb.DMatrix(as.matrix(X), label = y)
-      xgboost::xgb.train(
-        params = list(
-          objective        = "binary:logistic",
-          eval_metric      = "logloss",
-          max_depth        = 4,
-          eta              = .1,
-          subsample        = .8,
-          colsample_bytree = .8
-        ),
-        data    = dtrain,
-        nrounds = nrounds,
-        verbose = 0
+      df <- data.frame(X, .y = factor(y))
+      e1071::svm(
+        .y ~ .,
+        data = df,
+        kernel = kernel,
+        cost = cost,
+        gamma = gamma,
+        probability = TRUE
       )
     },
     predict = function(fit, newX) {
-      predict(fit, xgboost::xgb.DMatrix(as.matrix(newX)))
+      pred <- predict(
+        fit,
+        newdata = as.data.frame(newX),
+        probability = TRUE
+      )
+      probs <- attr(pred, "probabilities")
+      probs[, "1"]
     }
   )
 }
+
 
 # ---- generic permutation feature importance, works for any classifier ------
 

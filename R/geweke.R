@@ -435,13 +435,15 @@ apply_test_functions <- function(direct_draws, gibbs_draws, test_functions) {
 
 #' tabulate_geweke_tests
 #'
-#' Takes your draws and test functions and applies them if needed, then takes the results and outputs them as a matrix.
-#' @param draws Your matrix of draws.
+#' Takes your draws and test functions and applies them if needed, then outputs statistics of test results.
+#' @param direct_draws Your matrix of direct draws - e.g., test_matrix$direct when test_matrix is your apply_test_functions output
+#' @param gibbs_draws Your matrix of gibbs draws - e.g. test_matrix$gibbs
 #' @param test_functions Your test functions
-#' @param tests_applies If you have already applied test functions then skip the step where you apply them.
+#' @param tests_applied If you have already applied test functions then skip the step where you apply them
 #' @return Returns a results matrix for all your test functions
 #' @export
-tabulate_geweke_tests <- function(draws,
+tabulate_geweke_tests <- function(direct_draws,
+                                  gibbs_draws,
                                   test_functions,
                                   tests_applied = FALSE) {
 
@@ -454,36 +456,27 @@ tabulate_geweke_tests <- function(draws,
                   "Convergence statistic", "Convergence p_value")
 
   if (tests_applied) {
-    test_matrix <- draws
+    test_matrix <- list(direct = direct_draws, gibbs = gibbs_draws)
   } else {
-    test_matrix <- apply_test_functions(draws$direct,
-                                        draws$gibbs,
+    test_matrix <- apply_test_functions(direct_draws,
+                                        gibbs_draws,
                                         test_functions)
   }
 
   results_matrix <- matrix(NA, nrow = length(test_functions), ncol = 6,
                            dimnames =
-                             list(
-                               #colnames
-                               names(test_functions),
-                               #rownames
-                               c(paste("Geweke", stats),
-                                 paste("KS", stats),
-                                 paste("Convergence", stats))
-                             ))
+                             list(names(test_functions), #colnames
+                                  #rownames
+                                  c(paste("Geweke", stats),
+                                    paste("KS", stats),
+                                    paste("Convergence", stats))
+                                  )
+                           )
 
   #intentionally copying naming conventions from recompute_ranks()
   #to be consistent
 
   for (nm in names(test_functions)) {
-
-    # g_mc <- as.numeric(sapply(seq_len(nrow(direct_draws$theta)), function(i) {
-    #   fn(direct_draws$theta[i, ], as.numeric(direct_draws$y[i, ]))
-    # }))
-    #
-    # g_sc <- as.numeric(sapply(seq_len(nrow(gibbs_draws$theta)), function(i) {
-    #   fn(gibbs_draws$theta[i, ], as.numeric(gibbs_draws$y[i, ]))
-    # }))
 
     g_mc <- test_matrix$direct[, nm]
     g_sc <- test_matrix$gibbs[, nm]
@@ -520,25 +513,27 @@ tabulate_geweke_tests <- function(draws,
   return(as.data.frame(results_matrix, col.names = stat_names))
 }
 
-#' tabulate_geweke_tests
+#' plot_geweke_tests
 #'
-#' Takes your draws and test functions and applies them if needed, then takes the results and outputs them as a matrix.
-#' @param draws Your matrix of draws.
+#' Takes your draws and test functions and applies them if needed, then outputs QQ plots of results.
+#' @param direct_draws Your matrix of direct draws - e.g., test_matrix$direct when test_matrix is your apply_test_functions output
+#' @param gibbs_draws Your matrix of gibbs draws - e.g. test_matrix$gibbs
 #' @param test_functions Your test functions
-#' @param tests_applies If you have already applied test functions then skip the step where you apply them.
-#' @param probs Quantiles for your graph
+#' @param tests_applies If you have already applied test functions then skip the step where you apply them
+#' @param probs Sequence of quantiles for your graph
 #' @return Returns a results matrix for all your test functions
 #' @export
-plot_geweke_tests <- function(draws,
+plot_geweke_tests <- function(direct_draws,
+                              gibbs_draws,
                               test_functions,
                               tests_applied = FALSE,
                               probs = seq(0.05, 0.95, by = 0.05)) {
 
   if (tests_applied) {
-    test_matrix <- draws
+    test_matrix <- list(direct = direct_draws, gibbs = gibbs_draws)
   } else {
-    test_matrix <- apply_test_functions(draws$direct,
-                                        draws$gibbs,
+    test_matrix <- apply_test_functions(direct_draws,
+                                        gibbs_draws,
                                         test_functions)
   }
 

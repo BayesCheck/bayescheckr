@@ -66,89 +66,93 @@ default_xgb_classifier <- function(nrounds = 100) {
   )
 }
 
-# ---- random forest classifier ----------------------------------------------
-
+# ---- random forest classifier: opt-in, matches the old default behavior ----------
 #' default_rforest_classifier
 #'
-#' Runs a Random Forest classifier.
+#' Runs random forest classifier.
 #'
-#' @param ntree Number of trees in the forest.
-#' @param ... Additional arguments passed to randomForest::randomForest().
-#'
-#' @return A list containing train() and predict() functions.
+#' @param nrounds replace this
+#' @return returns a list of two functions: train and test.
 #' @export
-default_rforest_classifier <- function(ntree = 500) {
-
+default_rforest_classifier <- function(...) {
+  #need to replace all of this
   list(
-
     train = function(X, y) {
-      df <- data.frame(X, .y = factor(y))
-
-      randomForest::randomForest(
-        .y ~ .,
-        data = df,
-        ntree = ntree
+      dtrain <- xgboost::xgb.DMatrix(as.matrix(X), label = y)
+      xgboost::xgb.train(
+        params = list(
+          objective        = "binary:logistic",
+          eval_metric      = "logloss",
+          max_depth        = 4,
+          eta              = .1,
+          subsample        = .8,
+          colsample_bytree = .8
+        ),
+        data    = dtrain,
+        nrounds = nrounds,
+        verbose = 0
       )
     },
-
     predict = function(fit, newX) {
-      predict(
-        fit,
-        newdata = as.data.frame(newX),
-        type = "prob"
-      )[, 2]
+      predict(fit, xgboost::xgb.DMatrix(as.matrix(newX)))
     }
-
   )
 }
 
-# ---- support vector machine classifier -------------------------------------
-
+# ---- Support Vector Machine classifier: opt-in, matches the old default behavior ----------
 #' default_svm_classifier
 #'
-#' Runs a Support Vector Machine classifier.
+#' Runs Support Vector Machine classifier.
 #'
-#' @param kernel Kernel used by the SVM.
-#' @param cost Cost parameter.
-#' @param gamma Gamma parameter (for radial kernels).
-#' @param ... Additional arguments passed to e1071::svm().
-#'
-#' @return A list containing train() and predict() functions.
+#' @param nrounds replace this
+#' @return returns a list of two functions: train and test.
 #' @export
-default_svm_classifier <- function(kernel = "radial",
-                                   cost = 1,
-                                   gamma = NULL) {
-
+default_svm_classifier <- function(...) {
+  #need to replace all of this
   list(
-
     train = function(X, y) {
-
-      df <- data.frame(X, .y = factor(y))
-
-      e1071::svm(
-        .y ~ .,
-        data = df,
-        kernel = kernel,
-        cost = cost,
-        gamma = gamma,
-        probability = TRUE
+      dtrain <- xgboost::xgb.DMatrix(as.matrix(X), label = y)
+      xgboost::xgb.train(
+        params = list(
+          objective        = "binary:logistic",
+          eval_metric      = "logloss",
+          max_depth        = 4,
+          eta              = .1,
+          subsample        = .8,
+          colsample_bytree = .8
+        ),
+        data    = dtrain,
+        nrounds = nrounds,
+        verbose = 0
       )
     },
-
     predict = function(fit, newX) {
-
-      pred <- predict(
-        fit,
-        newdata = as.data.frame(newX),
-        probability = TRUE
-      )
-
-      probs <- attr(pred, "probabilities")
-
-      probs[, which(colnames(probs) == "1")]
+      predict(fit, xgboost::xgb.DMatrix(as.matrix(newX)))
     }
-
   )
+}
+
+# ---- generic permutation feature importance, works for any classifier ------
+
+.permutation_importance <- function(fit, predict_fn, Xtest, ytest,
+                                    baseline_acc, n_perm = 99) {
+
+  feature_cols <- colnames(Xtest)
+
+  purrr::map_dfr(feature_cols, function(f) {
+    perm_acc <- replicate(n_perm, {
+      Xperm      <- Xtest
+      Xperm[, f] <- sample(Xperm[, f])
+      p_perm     <- predict_fn(fit, Xperm)
+      mean(ifelse(p_perm > 0.5, 1, 0) == ytest, na.rm = TRUE)
+    })
+
+    data.frame(
+      feature       = f,
+      observed_drop = baseline_acc - mean(perm_acc),
+      p_value       = (sum(perm_acc >= baseline_acc) + 1) / (n_perm + 1)
+    )
+  })
 }
 
 
@@ -159,7 +163,7 @@ default_svm_classifier <- function(kernel = "radial",
                              varnames,
                              classifier  = NULL,   # <- pluggable
                              train_frac  = 0.8,
-                             n_rounds     = 100,     # only used by the default xgb classifier
+                             nrounds     = 100,     # only used by the default xgb classifier
                              n_perm      = 20,
                              alpha       = 0.05,
                              dist        = "normal") {  # significance level for h0 decision
@@ -168,7 +172,7 @@ default_svm_classifier <- function(kernel = "radial",
     classifier <- default_glm_classifier()
   } else if (classifier == "xgboost") {
     classifier <- default_xgb_classifier()
-  } else classifier <- classifier()
+  }
   stopifnot(is.function(classifier$train), is.function(classifier$predict))
 
   ##-----------------------
@@ -275,7 +279,7 @@ run_distributional_shift <- function(
     gibbs_draws,
     classifier  = NULL,
     train_frac  = 0.8,
-    n_rounds     = 100,
+    nrounds     = 100,
     n_perm      = 20,
     alpha       = 0.05,
     dist        = "normal"
@@ -297,7 +301,7 @@ run_distributional_shift <- function(
     varnames,
     classifier = classifier,
     train_frac = train_frac,
-    n_rounds    = n_rounds,
+    nrounds    = nrounds,
     n_perm     = n_perm,
     alpha      = alpha,
     dist       = dist
@@ -319,7 +323,7 @@ run_distributional_shift <- function(
 #
 #   result <- run_distributional_shift(
 #     direct_draws, gibbs_draws,
-#     classifier = .default_xgb_classifier(n_rounds = 100)
+#     classifier = .default_xgb_classifier(nrounds = 100)
 #   )
 
 

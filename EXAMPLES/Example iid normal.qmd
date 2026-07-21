@@ -4,6 +4,8 @@ format: html
 ---
 set seed first
 ```{r}
+#| label: set-seed
+
 set.seed(42)
 ```
 
@@ -40,6 +42,8 @@ After implementing this posterior sampler, we use the functions in our package `
 Add our samplers:
 
 ```{r}
+#| label: define-prior
+
 prior_sampler <- function(prior_hyper_params) {
   a0  <- prior_hyper_params$a0
   b0  <- prior_hyper_params$b0
@@ -53,6 +57,8 @@ prior_sampler <- function(prior_hyper_params) {
 ```
 
 ```{r}
+#| label: define-likelihood
+
 likelihood_sampler <- function(n_obs, theta, prior_hyper_params) {
   
   rnorm(n_obs, theta$mu, sqrt(theta$sigmasq))
@@ -61,6 +67,8 @@ likelihood_sampler <- function(n_obs, theta, prior_hyper_params) {
 ```
 
 ```{r}
+#| label: define-posterior
+
 posterior_sampler <- function(n_draws, y, prior_hyper_params,
                               init = c(mean(y), var(y))) {
 
@@ -108,20 +116,21 @@ n_obs <- 10
 Get posterior draws by calling `run_geweke()`:
 
 ```{r}
+#| label: run-geweke
 
-draws <- run_geweke(prior_sampler = iidnorm_prior_sampler,
-                    likelihood_sampler = iidnorm_likelihood_sampler,
-                    posterior_sampler = iidnorm_posterior_sampler,
-                    n_obs = n_obs, n_draws = n_draws, n_thin = 2,
-                    prior_hyper_params = prior_hyper_params)
+geweke_results <- run_geweke(prior_sampler = iidnorm_prior_sampler,
+                             likelihood_sampler = iidnorm_likelihood_sampler,
+                             posterior_sampler = iidnorm_posterior_sampler,
+                             n_obs = n_obs, n_draws = n_draws, n_thin = 2,
+                             prior_hyper_params = prior_hyper_params)
 ```
 
 We can see our draws in both a long format (compatible with SBC) or the standard format. 
 ```{r}
+#| label: display-direct-gibbs-draws
 
-direct_draws <- draws$direct
-gibbs_draws <- draws$gibbs
-
+direct_draws <- geweke_results$direct
+gibbs_draws <- geweke_results$gibbs
 
 direct_draws$draws
 gibbs_draws$draws
@@ -132,6 +141,8 @@ Great! We have our draws. Now let's do all of our test functions to compare them
 Time to define our test functions in a specific way. Like this:
 
 ```{r}
+#| label: list-test-functions
+
 test_fns <- make_test_functions(
   mu_marg = function(theta, y) theta$mu,
   sigmasq_marg = function(theta, y) theta$sigmasq,
@@ -175,9 +186,9 @@ Make some QQ plots:
 #| label: geweke-test-qq-plots
 
 plot_geweke_tests(direct_draws,
-                 gibbs_draws,
-                 test_functions = test_fns,
-                 probs = seq(0.01, 0.99, 0.01))
+                  gibbs_draws,
+                  test_functions = test_fns,
+                  probs = seq(0.01, 0.99, 0.01))
 ```
 
 OK so now we have all our Geweke stuff. Onto SBC:
@@ -185,6 +196,8 @@ OK so now we have all our Geweke stuff. Onto SBC:
 ## SBC
 
 ```{r}
+#| label: run-sbc
+
 res <- run_sbc(
   prior_sampler      = prior_sampler,
   likelihood_sampler = likelihood_sampler,
@@ -199,22 +212,20 @@ res <- run_sbc(
 ```
 
 ```{r}
+#| label: plot-sbc-diagnostics
 SBC::plot_rank_hist(res$sbc_result)
-```
-```{r}
 SBC::plot_ecdf_diff(res$sbc_result)
 ```
 
 ```{r}
+#| label: run-c2st
 result <- run_distributional_shift(
   direct_draws = direct_draws,
   gibbs_draws  = gibbs_draws,
   classifier  = default_xgb_classifier(nrounds = 100)
 )
 
-# ------------------------------------------------------------------------------
 # Results
-# ------------------------------------------------------------------------------
 
 result$classifier_accuracy
 

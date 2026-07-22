@@ -1,3 +1,7 @@
+#'make_test_functions
+#'
+#' creates a list of all test functions
+#' @param ... a list of all used test functions.
 #' @export
 make_test_functions <- function(...) {
   fns <- list(...)
@@ -27,7 +31,11 @@ make_test_functions <- function(...) {
 #===============================================================================
 #FOR SBC ONLY:
 
-#' @export
+#'recompute_ranks
+#'
+#'For SBC only
+#'
+#'@export
 recompute_ranks <- function(result, test_fns,
                             parallelize = FALSE,
                             n_thin = NULL) {

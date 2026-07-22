@@ -10,11 +10,11 @@ as_theta}
 as_theta(x)
 }
 \arguments{
-\item{x}{input theta}
+\item{x}{input theta.}
 }
 \value{
-output theta in the correct format
+output theta in the correct format.
 }
 \description{
-Makes sure theta is constructed in a way that makes it robust to different access methods
+Makes sure theta is constructed in a way that makes it robust to different access methods.
 }

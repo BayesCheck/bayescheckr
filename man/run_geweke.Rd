@@ -2,7 +2,7 @@
 % Please edit documentation in R/geweke.R
 \name{run_geweke}
 \alias{run_geweke}
-\title{run_gewke}
+\title{run_geweke}
 \usage{
 run_geweke(
   prior_sampler,
@@ -18,23 +18,25 @@ run_geweke(
 )
 }
 \arguments{
-\item{prior_sampler}{The input for your prior sampler}
+\item{prior_sampler}{The input for your prior sampler. Takes as input: prior_hyper_params. Returns: a named object (list or named vector) where names() gives parameter names and length() gives parameter count.}
 
-\item{likelihood_sampler}{The input for your likelihood sampler}
+\item{likelihood_sampler}{The input for your likelihood sampler. Takes as input: (n_obs, theta, prior_hyper_params). Returns: a plain numeric vector of length n_obs.}
 
-\item{posterior_sampler}{The input for your posterior sampler.}
+\item{posterior_sampler}{The input for your posterior sampler. Takes as input: (n_draws, y, prior_hyper_params, init = NULL). First line of the function body should always be theta <- if (is.null(init)) <your_default> else unlist(init). Returns: a matrix with n_draws rows and named columns matching the names from prior_sampler.}
 
-\item{n_obs}{Number of observations in each simulated dataset}
+\item{n_obs}{Number of observations in each simulated dataset.}
 
-\item{n_burn}{Number of the first draws we discard so that the distribution can converge to an acurate sampler from our intended distribution}
+\item{n_draws}{Number of draws from both the marginal-conditional and the successive-conditional samplers. Default is 10,000 draws to ensure MCMC chain convergence.}
 
-\item{prior_hyper_params}{The list of prior hyperparameters reqired for your MCMC samplers to work as intended}
+\item{n_burn}{Number of the first draws we discard so that the distribution can converge to an acurate sampler from our intended distribution.}
 
-\item{test_fns}{A list of all the test functions that you want to run on your sampler}
+\item{n_thin}{We skip draws in the chain and only take every \code{n_thin}-th draw (e.g., every 5th draw) so that the dependency of the MCMC does not effect the distribution as much.}
+
+\item{prior_hyper_params}{The list of prior hyperparameters reqired for your MCMC samplers to work as intended.}
+
+\item{test_fns}{A list of all the test functions that you want to run on your sampler. To access parameters, access as theta[\link{"name"}] or theta[\link{index}] with a double bracket not single bracket, and unlist(theta\link{1:p}) to extract sub-vector parameters.}
 
 \item{parallelize}{A Boolean that allows the user to choose if they want to use all their computer cores to speed up the computation.}
-
-\item{thin}{Number of draws we skip each time we draw so that the dependancy of the MCMC does not effect the distribution as much.}
 }
 \value{
 Returns a list: (list(direct = direct_draws, gibbs = gibbs_draws)). These are your gibbs and direct draws and what we are checking with the geweke thing.

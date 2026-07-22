@@ -9,7 +9,6 @@ run_distributional_shift(
   gibbs_draws,
   classifier = NULL,
   train_frac = 0.8,
-  nrounds = 100,
   n_perm = 20,
   alpha = 0.05,
   dist = "normal"
@@ -27,8 +26,6 @@ run_distributional_shift(
 \item{n_perm}{Used to determine feature importance, does not effect the classifier.}
 
 \item{alpha}{Used to bound the P value of the C2ST test on our classifier.}
-
-\item{n_rounds}{Used specifically for certain types of classifiers that are iterative, like random forests or xgboost. Its the number of times it itterates.}
 }
 \value{
 returns a list of the form: list(classifier_accuracy = accuracy,c2st = c2st, feature_importance = feature_importance).

@@ -13,18 +13,18 @@ plot_geweke_tests(
 )
 }
 \arguments{
-\item{direct_draws}{Your matrix of direct draws - e.g., test_matrix$direct when test_matrix is your apply_test_functions output}
+\item{direct_draws}{Your matrix of direct draws - e.g., test_matrix$direct when test_matrix is your apply_test_functions output.}
 
-\item{gibbs_draws}{Your matrix of gibbs draws - e.g. test_matrix$gibbs}
+\item{gibbs_draws}{Your matrix of gibbs draws - e.g. test_matrix$gibbs.}
 
-\item{test_functions}{Your test functions}
+\item{test_functions}{Your test functions. To access parameters, access as theta[\link{"name"}] or theta[\link{index}] with a double bracket not single bracket, and unlist(theta\link{1:p}) to extract sub-vector parameters.}
 
-\item{probs}{Sequence of quantiles for your graph}
+\item{tests_applied}{If you have already applied test functions then skip the step where you apply them.}
 
-\item{tests_applies}{If you have already applied test functions then skip the step where you apply them}
+\item{probs}{Sequence of quantiles for your graph.}
 }
 \value{
-Returns a results matrix for all your test functions
+Returns a grid of plots, one for each test function comparing the marginal-conditional and successive-conditional draw quantiles.
 }
 \description{
 Takes your draws and test functions and applies them if needed, then outputs QQ plots of results.

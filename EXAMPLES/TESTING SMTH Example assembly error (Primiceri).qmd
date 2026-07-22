@@ -501,7 +501,7 @@ correct_gibbs_draws <- primiceri_geweke_correct$gibbs
 
 c2st_primiceri_correct <- run_distributional_shift(correct_direct_draws,
                                                    correct_gibbs_draws,
-                                                   classifier = default_xgb_classifier(nrounds = 100))
+                                                   classifier = default_xgb_classifier())
 
 c2st_primiceri_correct
 ```

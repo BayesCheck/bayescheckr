@@ -14,20 +14,20 @@ geweke_mc_draws(
 )
 }
 \arguments{
-\item{prior_sampler}{The input for your prior sampler}
+\item{prior_sampler}{The input for your prior sampler. Takes as input: prior_hyper_params. Returns: a named object (list or named vector) where names() gives parameter names and length() gives parameter count.}
 
-\item{likelihood_sampler}{The input for your likelihood sampler}
+\item{likelihood_sampler}{The input for your likelihood sampler. Takes as input: (n_obs, theta, prior_hyper_params). Returns: a plain numeric vector of length n_obs.}
 
-\item{n_obs}{Number of observations in each simulated dataset}
+\item{n_obs}{Number of observations in each simulated dataset.}
 
-\item{n_draws}{Number of draws from your joint}
+\item{n_draws}{Number of draws from your joint. Default is 10,000 draws to ensure MCMC chain convergence.}
 
-\item{prior_hyper_params}{The list of prior hyperparameters required for your MCMC samplers to work as intended}
+\item{prior_hyper_params}{The list of prior hyperparameters required for your MCMC samplers to work as intended.}
 
-\item{posterior_sampler}{The input for your posterior sampler.}
+\item{parallelize}{A Boolean that allows the user to choose if they want to use all their computer cores to speed up the computation.}
 }
 \value{
-Returns a list: list(draws = data.frame(draws_matrix),wide = data.frame(draws_matrix_wide), theta = data.frame(theta_matrix), y = data.frame(y_matrix)), which contains all draws from your simulated distribution
+Returns a list: list(draws = data.frame(draws_matrix),wide = data.frame(draws_matrix_wide), theta = data.frame(theta_matrix), y = data.frame(y_matrix)), which contains all draws from your simulated distribution.
 }
 \description{
 The marginal conditional draws from your joint.

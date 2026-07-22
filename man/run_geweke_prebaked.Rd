@@ -2,7 +2,7 @@
 % Please edit documentation in R/geweke.R
 \name{run_geweke_prebaked}
 \alias{run_geweke_prebaked}
-\title{run_gewke_prebaked}
+\title{run_geweke_prebaked}
 \usage{
 run_geweke_prebaked(
   model,
@@ -18,21 +18,23 @@ run_geweke_prebaked(
 \arguments{
 \item{model}{select an option from: "iidnorm", "linreg", "doucet", "primiceri". All of which are our previously tested examples.}
 
-\item{n_draws}{Number of posterior draws produced for each simulated dataset}
+\item{n_obs}{Number of observations in each simulated dataset.}
 
-\item{n_burn}{Number of the first draws we discard so that the distribution can converge to an acurate sampler from our intended distribution}
+\item{n_draws}{Number of posterior draws produced for each simulated dataset. Default is 10,000 draws to ensure MCMC chain convergence.}
 
-\item{n_thin}{Number of draws we skip each time we draw so that the dependancy of the MCMC does not effect the distribution as much.}
+\item{n_burn}{Number of the first draws we discard so that the distribution can converge to an accurate sampler from our intended distribution.}
 
-\item{prior_hyper_params}{The list of prior hyperparameters reqired for your MCMC samplers to work as intended}
+\item{n_thin}{We skip draws in the chain and only take every \code{n_thin}-th draw (e.g., every 5th draw) so that the dependency of the MCMC does not effect the distribution as much.}
 
-\item{test_fns}{A list of all the test functions that you want to run on your sampler}
+\item{prior_hyper_params}{The list of prior hyperparameters reqired for your MCMC samplers to work as intended.}
+
+\item{test_fns}{A list of all the test functions that you want to run on your sampler. To access parameters, access as theta[\link{"name"}] or theta[\link{index}] with a double bracket not single bracket, and unlist(theta\link{1:p}) to extract sub-vector parameters.}
 
 \item{parallelize}{A Boolean that allows the user to choose if they want to use all their computer cores to speed up the computation.}
 }
 \value{
-Returns a list: (list(direct = direct_draws, gibbs = gibbs_draws)). These are your gibbs and direct draws and what we are checking with the geweke thing.
+Returns a list: (list(direct = direct_draws, gibbs = gibbs_draws)). These are your gibbs and direct draws and what we are checking with the Geweke method
 }
 \description{
-Runs an example geweke from rebuilt and tested models
+Runs an example geweke from rebuilt and tested models.
 }

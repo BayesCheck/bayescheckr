@@ -17,9 +17,9 @@
 
 #' as_theta
 #'
-#' Makes sure theta is constructed in a way that makes it robust to different access methods
-#' @param x input theta
-#' @return output theta in the correct format
+#' Makes sure theta is constructed in a way that makes it robust to different access methods.
+#' @param x input theta.
+#' @return output theta in the correct format.
 #' @export
 as_theta <- function(x) {
   if (is.list(x)) {
@@ -88,14 +88,15 @@ keep_draw <- function(draw_num, n_burn, n_thin) {
 #' geweke_sc_draws
 #'
 #' The successive conditional draws from your joint.
-#' @param prior_sampler The input for your prior sampler
-#' @param likelihood_sampler The input for your likelihood sampler
-#' @param posterior_sampler The input for your posterior sampler.
-#' @param n_obs Number of observations in each simulated dataset
-#' @param n_burn Number of the first draws we discard so that the distribution can converge to an accurate sampler from our intended distribution
-#' @param thin Number of draws we skip each time we draw so that the dependency of the MCMC does not effect the distribution as much.
-#' @param prior_hyper_params The list of prior hyperparameters required for your MCMC samplers to work as intended
-#' @return Returns a list: list(draws = data.frame(draws_matrix),wide = data.frame(draws_matrix_wide), theta = data.frame(theta_matrix), y = data.frame(y_matrix)), which contains all draws from your simulated distribution
+#' @param prior_sampler The input for your prior sampler. Takes as input: prior_hyper_params. Returns: a named object (list or named vector) where names() gives parameter names and length() gives parameter count.
+#' @param likelihood_sampler The input for your likelihood sampler. Takes as input: (n_obs, theta, prior_hyper_params). Returns: a plain numeric vector of length n_obs.
+#' @param posterior_sampler The input for your posterior sampler. Takes as input: (n_draws, y, prior_hyper_params, init = NULL). First line of the function body should always be theta <- if (is.null(init)) <your_default> else unlist(init). Returns: a matrix with n_draws rows and named columns matching the names from prior_sampler.
+#' @param n_obs Number of observations in each simulated dataset.
+#' @param n_draws Number of draws from your joint. Default is 10,000 draws to ensure MCMC chain convergence.
+#' @param n_burn Number of the first draws we discard so that the distribution can converge to an accurate sampler from our intended distribution.
+#' @param n_thin We skip draws in the chain and only take every `n_thin`-th draw (e.g., every 5th draw) so that the dependency of the MCMC does not effect the distribution as much.
+#' @param prior_hyper_params The list of prior hyperparameters required for your MCMC samplers to work as intended.
+#' @return Returns a list: list(draws = data.frame(draws_matrix),wide = data.frame(draws_matrix_wide), theta = data.frame(theta_matrix), y = data.frame(y_matrix)), which contains all draws from your simulated distribution.
 #' @export
 geweke_sc_draws <- function(prior_sampler,
                             likelihood_sampler,
@@ -196,13 +197,13 @@ geweke_sc_draws <- function(prior_sampler,
 #' geweke_mc_draws
 #'
 #' The marginal conditional draws from your joint.
-#' @param prior_sampler The input for your prior sampler
-#' @param likelihood_sampler The input for your likelihood sampler
-#' @param posterior_sampler The input for your posterior sampler.
-#' @param n_obs Number of observations in each simulated dataset
-#' @param n_draws Number of draws from your joint
-#' @param prior_hyper_params The list of prior hyperparameters required for your MCMC samplers to work as intended
-#' @return Returns a list: list(draws = data.frame(draws_matrix),wide = data.frame(draws_matrix_wide), theta = data.frame(theta_matrix), y = data.frame(y_matrix)), which contains all draws from your simulated distribution
+#' @param prior_sampler The input for your prior sampler. Takes as input: prior_hyper_params. Returns: a named object (list or named vector) where names() gives parameter names and length() gives parameter count.
+#' @param likelihood_sampler The input for your likelihood sampler. Takes as input: (n_obs, theta, prior_hyper_params). Returns: a plain numeric vector of length n_obs.
+#' @param n_obs Number of observations in each simulated dataset.
+#' @param n_draws Number of draws from your joint. Default is 10,000 draws to ensure MCMC chain convergence.
+#' @param prior_hyper_params The list of prior hyperparameters required for your MCMC samplers to work as intended.
+#' @param parallelize A Boolean that allows the user to choose if they want to use all their computer cores to speed up the computation.
+#' @return Returns a list: list(draws = data.frame(draws_matrix),wide = data.frame(draws_matrix_wide), theta = data.frame(theta_matrix), y = data.frame(y_matrix)), which contains all draws from your simulated distribution.
 #' @export
 geweke_mc_draws <- function(prior_sampler,
                             likelihood_sampler,
@@ -255,17 +256,18 @@ geweke_mc_draws <- function(prior_sampler,
   return(direct_draws)
 }
 
-#' run_gewke
+#' run_geweke
 #'
 #' Puts everything together and creates the SC and MC draws for the test to use.
-#' @param prior_sampler The input for your prior sampler
-#' @param likelihood_sampler The input for your likelihood sampler
-#' @param posterior_sampler The input for your posterior sampler.
-#' @param n_obs Number of observations in each simulated dataset
-#' @param n_burn Number of the first draws we discard so that the distribution can converge to an acurate sampler from our intended distribution
-#' @param thin Number of draws we skip each time we draw so that the dependancy of the MCMC does not effect the distribution as much.
-#' @param prior_hyper_params The list of prior hyperparameters reqired for your MCMC samplers to work as intended
-#' @param test_fns A list of all the test functions that you want to run on your sampler
+#' @param prior_sampler The input for your prior sampler. Takes as input: prior_hyper_params. Returns: a named object (list or named vector) where names() gives parameter names and length() gives parameter count.
+#' @param likelihood_sampler The input for your likelihood sampler. Takes as input: (n_obs, theta, prior_hyper_params). Returns: a plain numeric vector of length n_obs.
+#' @param posterior_sampler The input for your posterior sampler. Takes as input: (n_draws, y, prior_hyper_params, init = NULL). First line of the function body should always be theta <- if (is.null(init)) <your_default> else unlist(init). Returns: a matrix with n_draws rows and named columns matching the names from prior_sampler.
+#' @param n_obs Number of observations in each simulated dataset.
+#' @param n_draws Number of draws from both the marginal-conditional and the successive-conditional samplers. Default is 10,000 draws to ensure MCMC chain convergence.
+#' @param n_burn Number of the first draws we discard so that the distribution can converge to an acurate sampler from our intended distribution.
+#' @param n_thin We skip draws in the chain and only take every `n_thin`-th draw (e.g., every 5th draw) so that the dependency of the MCMC does not effect the distribution as much.
+#' @param prior_hyper_params The list of prior hyperparameters reqired for your MCMC samplers to work as intended.
+#' @param test_fns A list of all the test functions that you want to run on your sampler. To access parameters, access as theta[["name"]] or theta[[index]] with a double bracket not single bracket, and unlist(theta[1:p]) to extract sub-vector parameters.
 #' @param parallelize A Boolean that allows the user to choose if they want to use all their computer cores to speed up the computation.
 #' @return Returns a list: (list(direct = direct_draws, gibbs = gibbs_draws)). These are your gibbs and direct draws and what we are checking with the geweke thing.
 #' @export
@@ -321,17 +323,18 @@ run_geweke <- function(prior_sampler,
   return(list(direct = direct_draws, gibbs = gibbs_draws))
 }
 
-#' run_gewke_prebaked
+#' run_geweke_prebaked
 #'
-#' Runs an example geweke from rebuilt and tested models
+#' Runs an example geweke from rebuilt and tested models.
 #' @param model select an option from: "iidnorm", "linreg", "doucet", "primiceri". All of which are our previously tested examples.
-#' @param n_draws Number of posterior draws produced for each simulated dataset
-#' @param n_burn Number of the first draws we discard so that the distribution can converge to an acurate sampler from our intended distribution
-#' @param n_thin Number of draws we skip each time we draw so that the dependancy of the MCMC does not effect the distribution as much.
-#' @param prior_hyper_params The list of prior hyperparameters reqired for your MCMC samplers to work as intended
-#' @param test_fns A list of all the test functions that you want to run on your sampler
+#' @param n_obs Number of observations in each simulated dataset.
+#' @param n_draws Number of posterior draws produced for each simulated dataset. Default is 10,000 draws to ensure MCMC chain convergence.
+#' @param n_burn Number of the first draws we discard so that the distribution can converge to an accurate sampler from our intended distribution.
+#' @param n_thin We skip draws in the chain and only take every `n_thin`-th draw (e.g., every 5th draw) so that the dependency of the MCMC does not effect the distribution as much.
+#' @param prior_hyper_params The list of prior hyperparameters reqired for your MCMC samplers to work as intended.
+#' @param test_fns A list of all the test functions that you want to run on your sampler. To access parameters, access as theta[["name"]] or theta[[index]] with a double bracket not single bracket, and unlist(theta[1:p]) to extract sub-vector parameters.
 #' @param parallelize A Boolean that allows the user to choose if they want to use all their computer cores to speed up the computation.
-#' @return Returns a list: (list(direct = direct_draws, gibbs = gibbs_draws)). These are your gibbs and direct draws and what we are checking with the geweke thing.
+#' @return Returns a list: (list(direct = direct_draws, gibbs = gibbs_draws)). These are your gibbs and direct draws and what we are checking with the Geweke method
 #' @export
 run_geweke_prebaked <- function(
     model, #string options: "iidnorm", "linreg", "doucet", "primiceri"
@@ -401,6 +404,13 @@ geweke_test <- function(g_mc,
   return(list(stat = test_stat, p_value = p_value))
 }
 
+#' apply_test_functions
+#'
+#' Takes in the direct and Gibbs draws and applies the specified test functions to output test values.
+#' @param direct_draws Your matrix of direct draws - e.g., test_matrix$direct when test_matrix is your apply_test_functions output.
+#' @param gibbs_draws Your matrix of gibbs draws - e.g. test_matrix$gibbs.
+#' @param test_functions Your test functions. To access parameters, access as theta[["name"]] or theta[[index]] with a double bracket not single bracket, and unlist(theta[1:p]) to extract sub-vector parameters.
+#' @return Returns a list of test matrices - one $direct, one $gibbs - with one column for each test function's values.
 #' @export
 apply_test_functions <- function(direct_draws, gibbs_draws, test_functions) {
 
@@ -436,11 +446,11 @@ apply_test_functions <- function(direct_draws, gibbs_draws, test_functions) {
 #' tabulate_geweke_tests
 #'
 #' Takes your draws and test functions and applies them if needed, then outputs statistics of test results.
-#' @param direct_draws Your matrix of direct draws - e.g., test_matrix$direct when test_matrix is your apply_test_functions output
-#' @param gibbs_draws Your matrix of gibbs draws - e.g. test_matrix$gibbs
-#' @param test_functions Your test functions
-#' @param tests_applied If you have already applied test functions then skip the step where you apply them
-#' @return Returns a results matrix for all your test functions
+#' @param direct_draws Your matrix of direct draws - e.g., test_matrix$direct when test_matrix is your apply_test_functions output.
+#' @param gibbs_draws Your matrix of gibbs draws - e.g. test_matrix$gibbs.
+#' @param test_functions Your test functions. To access parameters, access as theta[["name"]] or theta[[index]] with a double bracket not single bracket, and unlist(theta[1:p]) to extract sub-vector parameters.
+#' @param tests_applied If you have already applied test functions then skip the step where you apply them.
+#' @return Returns a results data frame with test statistics and p-values for all your test functions (as rows).
 #' @export
 tabulate_geweke_tests <- function(direct_draws,
                                   gibbs_draws,
@@ -516,12 +526,12 @@ tabulate_geweke_tests <- function(direct_draws,
 #' plot_geweke_tests
 #'
 #' Takes your draws and test functions and applies them if needed, then outputs QQ plots of results.
-#' @param direct_draws Your matrix of direct draws - e.g., test_matrix$direct when test_matrix is your apply_test_functions output
-#' @param gibbs_draws Your matrix of gibbs draws - e.g. test_matrix$gibbs
-#' @param test_functions Your test functions
-#' @param tests_applies If you have already applied test functions then skip the step where you apply them
-#' @param probs Sequence of quantiles for your graph
-#' @return Returns a results matrix for all your test functions
+#' @param direct_draws Your matrix of direct draws - e.g., test_matrix$direct when test_matrix is your apply_test_functions output.
+#' @param gibbs_draws Your matrix of gibbs draws - e.g. test_matrix$gibbs.
+#' @param test_functions Your test functions. To access parameters, access as theta[["name"]] or theta[[index]] with a double bracket not single bracket, and unlist(theta[1:p]) to extract sub-vector parameters.
+#' @param tests_applied If you have already applied test functions then skip the step where you apply them.
+#' @param probs Sequence of quantiles for your graph.
+#' @return Returns a grid of plots, one for each test function comparing the marginal-conditional and successive-conditional draw quantiles.
 #' @export
 plot_geweke_tests <- function(direct_draws,
                               gibbs_draws,

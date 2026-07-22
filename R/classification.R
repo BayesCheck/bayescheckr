@@ -165,8 +165,7 @@ default_svm_classifier <- function(kernel = "radial",
                              theta_B,
                              varnames,
                              classifier  = NULL,   # <- pluggable
-                             train_frac  = 0.8,
-                             nrounds     = 100,     # only used by the default xgb classifier
+                             train_frac  = 0.8,     # only used by the default xgb classifier
                              n_perm      = 20,
                              alpha       = 0.05,
                              dist        = "normal") {  # significance level for h0 decision
@@ -180,6 +179,7 @@ default_svm_classifier <- function(kernel = "radial",
     is.function(classifier$train),
     is.function(classifier$predict)
   )
+
   ##-----------------------
   ## Split A / Split B (unchanged)
   ##-----------------------
@@ -274,7 +274,6 @@ default_svm_classifier <- function(kernel = "radial",
 #' @param gibbs_draws Gibbs sampler draws from a simulated joint made up of successive conditional draws
 #' @param classifier The algorithm used for classifying which proportion of the data is from which distribution. Should output a matrix of predictions.
 #' @param train_frac The fraction of draws from your sampler that you want your classifier to train on. The remainder will be tested on for accuracy.
-#' @param n_rounds Used specifically for certain types of classifiers that are iterative, like random forests or xgboost. Its the number of times it itterates.
 #' @param n_perm Used to determine feature importance, does not effect the classifier.
 #' @param alpha Used to bound the P value of the C2ST test on our classifier.
 #' @return returns a list of the form: list(classifier_accuracy = accuracy,c2st = c2st, feature_importance = feature_importance).
@@ -284,7 +283,6 @@ run_distributional_shift <- function(
     gibbs_draws,
     classifier  = NULL,
     train_frac  = 0.8,
-    nrounds     = 100,
     n_perm      = 20,
     alpha       = 0.05,
     dist        = "normal"

@@ -11,7 +11,8 @@ run_distributional_shift(
   train_frac = 0.8,
   nrounds = 100,
   n_perm = 20,
-  alpha = 0.05
+  alpha = 0.05,
+  dist = "normal"
 )
 }
 \arguments{

@@ -2,27 +2,30 @@
 % Please edit documentation in R/geweke.R
 \name{plot_geweke_tests}
 \alias{plot_geweke_tests}
-\title{tabulate_geweke_tests}
+\title{plot_geweke_tests}
 \usage{
 plot_geweke_tests(
-  draws,
+  direct_draws,
+  gibbs_draws,
   test_functions,
   tests_applied = FALSE,
   probs = seq(0.05, 0.95, by = 0.05)
 )
 }
 \arguments{
-\item{draws}{Your matrix of draws.}
+\item{direct_draws}{Your matrix of direct draws - e.g., test_matrix$direct when test_matrix is your apply_test_functions output}
+
+\item{gibbs_draws}{Your matrix of gibbs draws - e.g. test_matrix$gibbs}
 
 \item{test_functions}{Your test functions}
 
-\item{probs}{Quantiles for your graph}
+\item{probs}{Sequence of quantiles for your graph}
 
-\item{tests_applies}{If you have already applied test functions then skip the step where you apply them.}
+\item{tests_applies}{If you have already applied test functions then skip the step where you apply them}
 }
 \value{
 Returns a results matrix for all your test functions
 }
 \description{
-Takes your draws and test functions and applies them if needed, then takes the results and outputs them as a matrix.
+Takes your draws and test functions and applies them if needed, then outputs QQ plots of results.
 }

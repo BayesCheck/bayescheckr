@@ -4,18 +4,25 @@
 \alias{tabulate_geweke_tests}
 \title{tabulate_geweke_tests}
 \usage{
-tabulate_geweke_tests(draws, test_functions, tests_applied = FALSE)
+tabulate_geweke_tests(
+  direct_draws,
+  gibbs_draws,
+  test_functions,
+  tests_applied = FALSE
+)
 }
 \arguments{
-\item{draws}{Your matrix of draws.}
+\item{direct_draws}{Your matrix of direct draws - e.g., test_matrix$direct when test_matrix is your apply_test_functions output}
+
+\item{gibbs_draws}{Your matrix of gibbs draws - e.g. test_matrix$gibbs}
 
 \item{test_functions}{Your test functions}
 
-\item{tests_applies}{If you have already applied test functions then skip the step where you apply them.}
+\item{tests_applied}{If you have already applied test functions then skip the step where you apply them}
 }
 \value{
 Returns a results matrix for all your test functions
 }
 \description{
-Takes your draws and test functions and applies them if needed, then takes the results and outputs them as a matrix.
+Takes your draws and test functions and applies them if needed, then outputs statistics of test results.
 }

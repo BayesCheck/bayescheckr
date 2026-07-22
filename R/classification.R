@@ -304,7 +304,6 @@ run_distributional_shift <- function(
     varnames,
     classifier = classifier,
     train_frac = train_frac,
-    nrounds    = nrounds,
     n_perm     = n_perm,
     alpha      = alpha,
     dist       = dist

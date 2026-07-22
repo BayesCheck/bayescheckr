@@ -34,16 +34,16 @@
 #'
 #' The call to run SBC on your sampler.
 #' This is done via an external package called SBC.
-#' @param prior_sampler The input for your prior sampler
-#' @param likelihood_sampler The input for your likelihood sampler
-#' @param posterior_sampler The input for your posterior sampler.
-#' @param n_sims Number of independent SBC simulations
-#' @param n_obs Number of observations in each simulated dataset
-#' @param n_draws Number of posterior draws produced for each simulated dataset
-#' @param prior_hyper_params The list of prior hyperparameters reqired for your MCMC samplers to work as intended
-#' @param test_fns A list of all the test functions that you want to run on your sampler
+#' @param prior_sampler The input for your prior sampler. Takes as input: prior_hyper_params. Returns: a named object (list or named vector) where names() gives parameter names and length() gives parameter count.
+#' @param likelihood_sampler The input for your likelihood sampler. Takes as input: (n_obs, theta, prior_hyper_params). Returns: a plain numeric vector of length n_obs.
+#' @param posterior_sampler The input for your posterior sampler. Takes as input: (n_draws, y, prior_hyper_params, init = NULL). First line of the function body should always be theta <- if (is.null(init)) <your_default> else unlist(init). Returns: a matrix with n_draws rows and named columns matching the names from prior_sampler.
+#' @param n_sims Number of independent SBC simulations.
+#' @param n_obs Number of observations in each simulated dataset.
+#' @param n_draws Number of posterior draws produced for each simulated dataset.
+#' @param prior_hyper_params The list of prior hyperparameters reqired for your MCMC samplers to work as intended.
+#' @param test_fns A list of all the test functions that you want to run on your sampler.
 #' @param parallelize A Boolean that allows the user to choose if they want to use all their computer cores to speed up the computation.
-#' @param globals Extra objects to export to parallel workers
+#' @param globals Extra objects to export to parallel workers.
 #' @return Returns a list: list(sbc_result = res, dataset = dataset, test_fns = test_fns), class = "bayescheckr_sbc") which then you can call upon using your plot functions.
 #' @export
 run_sbc <- function(prior_sampler,
@@ -174,13 +174,13 @@ run_sbc <- function(prior_sampler,
 #' Runs an example SBC from rebuilt and tested models
 #'
 #' @param model select an option from: "iidnorm", "linreg", "doucet", "primiceri". All of which are our previously tested examples.
-#' @param n_sims Number of independent SBC simulations
-#' @param n_obs Number of observations in each simulated dataset
-#' @param n_draws Number of posterior draws produced for each simulated dataset
-#' @param prior_hyper_params The list of prior hyperparameters reqired for your MCMC samplers to work as intended
-#' @param test_fns A list of all the test functions that you want to run on your sampler
+#' @param n_sims Number of independent SBC simulations.
+#' @param n_obs Number of observations in each simulated dataset.
+#' @param n_draws Number of posterior draws produced for each simulated dataset.
+#' @param prior_hyper_params The list of prior hyperparameters reqired for your MCMC samplers to work as intended.
+#' @param test_fns A list of all the test functions that you want to run on your sampler.
 #' @param parallelize A Boolean that allows the user to choose if they want to use all their computer cores to speed up the computation.
-#' @param globals Extra objects to export to parallel workers
+#' @param globals Extra objects to export to parallel workers.
 #' @return Returns a list: list(sbc_result = res, dataset = dataset, test_fns = test_fns), class = "bayescheckr_sbc") which then you can call upon using your plot functions.
 #' @export
 run_sbc_prebaked <- function(
@@ -224,8 +224,8 @@ run_sbc_prebaked <- function(
 #'
 #'Convert a bayescheckr_ranks object to an SBC_results object for plotting
 #'
-#' @param ranked a bayescheckr_ranks object for conversion
-#' @return returns an SBC_results object for plotting
+#' @param ranked a bayescheckr_ranks object for conversion.
+#' @return returns an SBC_results object for plotting.
 #' @export
 ranks_to_sbc_results <- function(ranked) {
 

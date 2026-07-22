@@ -472,7 +472,6 @@ posterior_sampler <- function(n_draws,
 }
 ```
 
-
 # Geweke checks
 
 ## On baseline correct sampler

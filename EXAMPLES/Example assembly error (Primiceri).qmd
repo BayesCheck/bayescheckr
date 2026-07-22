@@ -95,7 +95,7 @@ This gives us a full picture to implement and test the posterior through our fra
 We have an observable $y_i$ and unobservavbles $\theta,\,\sigma^2,\,s$. To put a prior on $s$ we use the values in Table 4 of KSC (1995):
 
 ```{r}
-#| label: prior hyper params
+#| label: prior-hyper-params
 
 theta_bar_0 <- 0
 v_0 <- 2
@@ -115,6 +115,8 @@ prior_hyper_params_primiceri <- c(theta_bar_0 = 0, v_0 = 2, a_0 = 1, b_0 = 1, n 
 
 
 ```{r}
+#| label: define-prior
+
 prior_sampler_primiceri <- function(prior_hyper_params){
 
   theta_bar_0 <- as.numeric(prior_hyper_params["theta_bar_0"])
@@ -134,6 +136,8 @@ prior_sampler_primiceri <- function(prior_hyper_params){
 ```
 
 ```{r}
+#| label: define-likelihood
+
 likelihood_sampler_primiceri <- function(n_obs, theta, prior_hyper_params){
   rnorm(n_obs, mean = theta$theta, sd = sqrt(theta$sigmasq ))
 }
@@ -148,6 +152,7 @@ For i in 1...n_draws:
   4. i <- i+1
 
 ```{r}
+#| label: show-correct-posterior
 correct_posterior_sampler <- function(n_draws, y, prior_hyper_params,
                                       init = NULL){
   
@@ -234,38 +239,10 @@ correct_posterior_sampler <- function(n_draws, y, prior_hyper_params,
 }
 ```
 
-## Testing
-
-```{r}
-devtools::install_github("Bayescheck/bayescheckr")
-
-library(bayescheckr)
-```
-```{r}
-test_fns <- make_test_functions(
-  theta = function(theta, y) theta$theta,
-  
-  sigmasq = function(theta, y) exp(theta$sigmasq),
-  
-  product = function(theta, y) {
-    theta$theta * log(theta$sigmasq)
-  },
-  
-  log_likelihood = function(theta, y) {
-    sum(dnorm(y, mean = theta$theta, sd = sqrt(exp(theta$sigmasq)), log = TRUE))
-  },
-  
-  sum_s = function(theta, y) sum(unlist(theta[grep("^s_", names(theta))])),
-  
-  mean_s = function(theta, y) mean(unlist(theta[grep("^s_", names(theta))]))
-)
-```
-
 ### Primiceri's erroneous sampler
 
-Primiceri's erroneous posterior sampler:
-
 ```{r}
+#| label: show-incorrect-posterior
 set.seed(67)
 
 wrong_assembly_posterior_sampler <- function(n_draws, y, prior_hyper_params,
@@ -355,10 +332,10 @@ wrong_assembly_posterior_sampler <- function(n_draws, y, prior_hyper_params,
 }
 ```
 
-One posterior to rule them all:
+Combining the correct and erroneous samplers, we can create one posterior to rule them all. The error is toggled on using the `buggy` parameter.
 
 ```{r}
-#| label: hybrid-posterior-primiceri
+#| label: define-hybrid-posterior
 
 posterior_sampler <- function(n_draws,
                               y, 
@@ -472,11 +449,42 @@ posterior_sampler <- function(n_draws,
 }
 ```
 
+## Testing
+
+```{r}
+#| label: load-package
+devtools::install_github("Bayescheck/bayescheckr")
+
+library(bayescheckr)
+```
+
+```{r}
+#| label: define-test-functions
+test_fns <- make_test_functions(
+  theta = function(theta, y) theta$theta,
+  
+  sigmasq = function(theta, y) exp(theta$sigmasq),
+  
+  product = function(theta, y) {
+    theta$theta * log(theta$sigmasq)
+  },
+  
+  log_likelihood = function(theta, y) {
+    sum(dnorm(y, mean = theta$theta, sd = sqrt(exp(theta$sigmasq)), log = TRUE))
+  },
+  
+  sum_s = function(theta, y) sum(unlist(theta[grep("^s_", names(theta))])),
+  
+  mean_s = function(theta, y) mean(unlist(theta[grep("^s_", names(theta))]))
+)
+```
+
 # Geweke checks
 
 ## On baseline correct sampler
 
 ```{r}
+#| label: correct-geweke-draws
 library(dplyr)
 
 primiceri_geweke_correct <- run_geweke(
@@ -491,11 +499,16 @@ primiceri_geweke_correct <- run_geweke(
   parallelize = TRUE
 )
 ```
+
 ```{r}
+#| label: plot-correct-geweke
+
 plot_geweke_tests(primiceri_geweke_correct, test_functions = test_fns,
                   probs = seq(0.15, 0.85, by = 0.05))
 ```
+
 ```{r}
+#| label: display-correct-c2st
 correct_direct_draws <- primiceri_geweke_correct$direct
 correct_gibbs_draws <- primiceri_geweke_correct$gibbs
 
@@ -552,22 +565,27 @@ ggplot(tsne_df_primiceri, aes(x = tsne1, y = tsne2, color = source)) +
 ## On wrong assembly sampler
 
 ```{r}
+#| label: wrong-geweke-draws
 library(dplyr)
 
 primiceri_geweke_wrong <- run_geweke(
   prior_sampler = prior_sampler_primiceri,
   likelihood_sampler = likelihood_sampler_primiceri,
-  posterior_sampler = wrong_assembly_posterior_sampler,
+  posterior_sampler = purrr::partial(posterior_sampler, buggy = TRUE),
   prior_hyper_params = prior_hyper_params_primiceri,
   n_obs = 10,
   n_draws = 5000,
+  n_thin = 10,
+  n_burn = 1000,
   parallelize = TRUE
 )
 ```
 ```{r}
+#| label: plot-wrong-geweke
 plot_geweke_tests(primiceri_geweke_wrong, test_functions = test_fns)
 ```
 ```{r}
+#| label: c2st-wrong
 wrong_direct_draws <- primiceri_geweke_wrong$direct
 wrong_gibbs_draws <- primiceri_geweke_wrong$gibbs
 
@@ -581,7 +599,7 @@ c2st_primiceri_wrong
 ### Visualization
 
 ```{r}
-#| label: fit-viz-primiceri
+#| label: fit-viz-primiceri-wrong
 
 viz_primiceri_wrong <- fit_c2st_for_viz(
   wrong_direct_draws$theta,
@@ -594,7 +612,7 @@ X_mat_primiceri_wrong <- as.matrix(viz_primiceri_wrong$Xtest)
 sum(duplicated(X_mat_primiceri_wrong))
 ```
 ```{r}
-#| label: run-tsne-primiceri
+#| label: run-tsne-primiceri-wrong
 
 set.seed(1)
 library(Rtsne)
@@ -609,7 +627,7 @@ tsne_df_primiceri_wrong <- data.frame(
 ```
 
 ```{r}
-#| label: plot-tsne-primiceri
+#| label: plot-tsne-primiceri-wrong
 
 ggplot(tsne_df_primiceri_wrong, aes(x = tsne1, y = tsne2, color = source)) +
   geom_point(alpha = 0.4, size = 0.8) +
@@ -626,22 +644,24 @@ Fortunately, our package offers multiple independent methods of validation. Belo
 Now we use SBC, a different, independent validation method:
 
 ```{r}
+#| label: correct-sbc-draws
 set.seed(234)
 
 primiceri_sbc_correct <- run_sbc(
   prior_sampler = prior_sampler_primiceri,
   likelihood_sampler = likelihood_sampler_primiceri,
-  posterior_sampler = correct_posterior_sampler,
+  posterior_sampler = posterior_sampler,
   n_sims = 500,
   n_obs = 10,
   n_draws = 2000,
   prior_hyper_params = prior_hyper_params_primiceri,
-  globals = c("correct_posterior_sampler", "ksc_tau", "ksc_mu", "ksc_pi"),
+  globals = c("posterior_sampler", "ksc_tau", "ksc_mu", "ksc_pi"),
   test_fns = test_fns,
   parallelize = TRUE
 )
 ```
 ```{r}
+#| label: plot-sbc-correct
 SBC::plot_rank_hist(primiceri_sbc_correct$sbc_result)
 SBC::plot_ecdf_diff(primiceri_sbc_correct$sbc_result)
 ```
@@ -649,21 +669,23 @@ SBC::plot_ecdf_diff(primiceri_sbc_correct$sbc_result)
 ## On the wrong assembly error
 
 ```{r}
+#| label: wrong-sbc-draws
 primiceri_sbc_wrong <- run_sbc(
   prior_sampler = prior_sampler_primiceri,
   likelihood_sampler = likelihood_sampler_primiceri,
-  posterior_sampler = wrong_assembly_posterior_sampler,
+  posterior_sampler = purrr::partial(posterior_sampler, buggy = TRUE),
   n_sims = 500,
   n_obs = 10,
   n_draws = 2000,
   prior_hyper_params = prior_hyper_params_primiceri,
-  globals = c("wrong_assembly_posterior_sampler", "ksc_tau", "ksc_mu", "ksc_pi"),
+  globals = c("posterior_sampler", "ksc_tau", "ksc_mu", "ksc_pi"),
   test_fns = test_fns,
   parallelize = TRUE
 )
 ```
 
 ```{r}
+#| label: plot-sbc-wrong
 SBC::plot_rank_hist(primiceri_sbc_wrong$sbc_result)
 SBC::plot_ecdf_diff(primiceri_sbc_wrong$sbc_result)
 ```

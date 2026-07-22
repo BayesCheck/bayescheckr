@@ -4,6 +4,13 @@
 
 #iid Normal -------
 
+#' iidnorm_prior_sampler
+#'
+#' Draws a sample from the conjugate Normal-Inverse-Gamma prior for the
+#' IID Normal model.
+#'
+#' @param prior_hyper_params List containing the prior hyperparameters.
+#' @return Returns a named list containing the sampled mean and variance.
 #' @export
 iidnorm_prior_sampler <- function(prior_hyper_params) {
   a0  <- prior_hyper_params$a0
@@ -16,11 +23,28 @@ iidnorm_prior_sampler <- function(prior_hyper_params) {
   )
 }
 
+#' iidnorm_likelihood_sampler
+#'
+#' Simulates IID Normal observations using the supplied parameter values.
+#'
+#' @param n_obs Number of observations to generate.
+#' @param theta Named list containing the model parameters.
+#' @param prior_hyper_params Prior hyperparameters (unused).
+#' @return Returns a numeric vector of simulated observations.
 #' @export
 iidnorm_likelihood_sampler <- function(n_obs, theta, prior_hyper_params) {
   rnorm(n_obs, theta$mu, sqrt(theta$sigmasq))
 }
 
+#' iidnorm_posterior_sampler
+#'
+#' Runs a Gibbs sampler for the IID Normal model with conjugate priors.
+#'
+#' @param n_draws Number of posterior draws.
+#' @param y Observed data.
+#' @param prior_hyper_params List containing the prior hyperparameters.
+#' @param init Initial values for the Markov chain.
+#' @return Returns a matrix of posterior draws.
 #' @export
 iidnorm_posterior_sampler <- function(n_draws, y, prior_hyper_params,
                                       init = c(mean(y), var(y))) {
@@ -53,6 +77,13 @@ iidnorm_posterior_sampler <- function(n_draws, y, prior_hyper_params,
 
 #Simple linear regression model -------
 
+#' linreg_prior_sampler
+#'
+#' Draws regression coefficients and the error variance from the Bayesian
+#' linear regression prior.
+#'
+#' @param prior_hyper_params List containing the prior hyperparameters.
+#' @return Returns a named list containing the sampled coefficients and variance.
 #' @export
 linreg_prior_sampler <- function(prior_hyper_params){
 
@@ -71,6 +102,14 @@ linreg_prior_sampler <- function(prior_hyper_params){
   return(c(beta_list, list(sigmasq = sig2)))
 }
 
+#' linreg_likelihood_sampler
+#'
+#' Simulates responses from a Bayesian linear regression model.
+#'
+#' @param n_obs Number of observations to generate.
+#' @param theta Named list containing the regression coefficients and variance.
+#' @param prior_hyper_params List containing the design matrix and prior hyperparameters.
+#' @return Returns a numeric vector of simulated responses.
 #' @export
 linreg_likelihood_sampler <- function(n_obs, theta, prior_hyper_params){
 
@@ -86,6 +125,15 @@ linreg_likelihood_sampler <- function(n_obs, theta, prior_hyper_params){
   return(y)
 }
 
+#' linreg_posterior_sampler
+#'
+#' Runs a Gibbs sampler for Bayesian linear regression with conjugate priors.
+#'
+#' @param n_draws Number of posterior draws.
+#' @param y Observed response vector.
+#' @param prior_hyper_params List containing the prior hyperparameters.
+#' @param init Initial values for the Markov chain.
+#' @return Returns a matrix of posterior draws.
 #' @export
 linreg_posterior_sampler <- function(n_draws, y, prior_hyper_params,
                               init = NULL)
@@ -142,7 +190,12 @@ linreg_posterior_sampler <- function(n_draws, y, prior_hyper_params,
 
 #Reversible jump MCMC, Andrieu & Doucet (1999) paper -----
 
-#first, define all Doucet helper functions so they're exported
+#' doucet_build_D
+#'
+#' Constructs the Fourier design matrix used by the Andrieu and Doucet
+#' reversible-jump MCMC example.
+#'
+#' @return Returns the Fourier design matrix.
 #' @export
 doucet_build_D <- function(omega_k, n) {
   k <- length(omega_k)
@@ -161,6 +214,12 @@ doucet_build_D <- function(omega_k, n) {
   return(D)
 }
 
+#' doucet_yPy
+#'
+#' Computes the quadratic form used in the Andrieu and Doucet reversible-jump
+#' MCMC algorithm.
+#'
+#' @return Returns the computed quadratic form.
 #' @export
 doucet_yPy <- function(omega_k, y, hyper) {
   k <- length(omega_k)
@@ -174,6 +233,12 @@ doucet_yPy <- function(omega_k, y, hyper) {
   sum(y^2) - as.numeric(crossprod(Dty, sol))
 }
 
+#' doucet_inner_update
+#'
+#' Performs the within-model Gibbs and Metropolis-Hastings updates for the
+#' reversible-jump MCMC sampler.
+#'
+#' @return Returns the updated model parameters.
 #' @export
 doucet_inner_update <- function(omega, a, sigma2, y, prior_hyper_params) {
   hyper <- prior_hyper_params
@@ -262,6 +327,13 @@ doucet_inner_update <- function(omega, a, sigma2, y, prior_hyper_params) {
 
 #end of Doucet helper functions
 
+#' doucet_prior_sampler
+#'
+#' Draws parameters from the prior distribution for the Andrieu and Doucet
+#' reversible-jump MCMC example.
+#'
+#' @param prior_hyper_params List containing the prior hyperparameters.
+#' @return Returns a named vector containing the sampled model parameters.
 #' @export
 doucet_prior_sampler <- function(prior_hyper_params) {
 
@@ -317,6 +389,15 @@ doucet_prior_sampler <- function(prior_hyper_params) {
 
 #now to call SBC and parallelize, only need to wrap local({doucet_prior_sampler})
 
+#' doucet_likelihood_sampler
+#'
+#' Simulates observations from the Fourier regression model used in the
+#' Andrieu and Doucet example.
+#'
+#' @param n_obs Number of observations to generate.
+#' @param theta Model parameters.
+#' @param prior_hyper_params List containing the prior hyperparameters.
+#' @return Returns a numeric vector of simulated observations.
 #' @export
 doucet_likelihood_sampler <- function(n_obs, theta, prior_hyper_params) {
 
@@ -339,6 +420,16 @@ doucet_likelihood_sampler <- function(n_obs, theta, prior_hyper_params) {
   return(y)
 }
 
+#' doucet_posterior_sampler
+#'
+#' Runs the reversible-jump MCMC sampler described by Andrieu and Doucet (1999).
+#'
+#' @param n_draws Number of posterior draws.
+#' @param y Observed data.
+#' @param prior_hyper_params List containing the prior hyperparameters.
+#' @param init Initial values for the Markov chain.
+#' @param buggy Logical indicating whether to run the intentionally flawed sampler.
+#' @return Returns a matrix of posterior draws.
 #' @export
 doucet_posterior_sampler <- function(n_draws,
                                      y,
@@ -444,6 +535,13 @@ doucet_posterior_sampler <- function(n_draws,
 
 #Assembly error: Primiceri (2005) ------
 
+#' primiceri_prior_sampler
+#'
+#' Draws parameters from the prior distribution for the Primiceri (2005)
+#' stochastic volatility example.
+#'
+#' @param prior_hyper_params List containing the prior hyperparameters.
+#' @return Returns the sampled model parameters.
 #' @export
 primiceri_prior_sampler <- function(prior_hyper_params){
 
@@ -462,11 +560,30 @@ primiceri_prior_sampler <- function(prior_hyper_params){
 
 }
 
+#' primiceri_likelihood_sampler
+#'
+#' Simulates observations from the Primiceri stochastic volatility example.
+#'
+#' @param n_obs Number of observations to generate.
+#' @param theta Model parameters.
+#' @param prior_hyper_params List containing the prior hyperparameters.
+#' @return Returns a numeric vector of simulated observations.
 #' @export
 primiceri_likelihood_sampler <- function(n_obs, theta, prior_hyper_params){
   rnorm(n_obs, mean = theta[["theta"]], sd = sqrt(theta[["sigmasq"]]))
 }
 
+#' primiceri_posterior_sampler
+#'
+#' Runs the posterior sampler for the Primiceri (2005) stochastic volatility
+#' example.
+#'
+#' @param n_draws Number of posterior draws.
+#' @param y Observed data.
+#' @param prior_hyper_params List containing the prior hyperparameters.
+#' @param init Initial values for the Markov chain.
+#' @param buggy Logical indicating whether to run the intentionally flawed sampler.
+#' @return Returns a matrix of posterior draws.
 #' @export
 primiceri_posterior_sampler <- function(n_draws,
                               y,

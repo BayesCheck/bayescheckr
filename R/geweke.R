@@ -534,43 +534,38 @@ tabulate_geweke_tests <- function(direct_draws,
 #' @return Returns a grid of plots, one for each test function comparing the marginal-conditional and successive-conditional draw quantiles.
 #' @export
 plot_geweke_tests <- function(direct_draws,
-                              gibbs_draws,
-                              test_functions,
-                              tests_applied = FALSE,
-                              probs = seq(0.05, 0.95, by = 0.05)) {
+                                   gibbs_draws,
+                                   test_functions,
+                                   tests_applied = FALSE,
+                                   probs = seq(0.05, 0.95, by = 0.05)) {
 
   if (tests_applied) {
     test_matrix <- list(direct = direct_draws, gibbs = gibbs_draws)
   } else {
-    test_matrix <- apply_test_functions(direct_draws,
-                                        gibbs_draws,
-                                        test_functions)
+    test_matrix <- apply_test_functions(direct_draws, gibbs_draws, test_functions)
   }
 
-  #probs <- seq(0.05, 0.95, by = 0.05)
-  n_fns <- length(test_functions)
-
-  # set up plot grid
-  par(mfrow = c(ceiling(n_fns / 3), 3))
-
-  for (nm in names(test_functions)) {
-
+  plot_df <- do.call(rbind, lapply(names(test_functions), function(nm) {
     g_mc <- test_matrix$direct[, nm]
     g_sc <- test_matrix$gibbs[, nm]
+    data.frame(
+      test_fn = nm,
+      direct  = quantile(g_mc, probs, na.rm = TRUE),
+      gibbs   = quantile(g_sc, probs, na.rm = TRUE)
+    )
+  }))
 
-    # compute quantiles and plot
-    quantiles_direct <- quantile(g_mc, probs)
-    quantiles_gibbs  <- quantile(g_sc, probs)
-
-    plot(quantiles_direct, quantiles_gibbs,
-         col = "red", pch = 19, cex = 0.5,
-         main = nm,
-         xlab = "Direct draw",
-         ylab = "Gibbs draw")
-    abline(a = 0, b = 1)
-  }
-
-  # reset plot layout
-  par(mfrow = c(1, 1))
+  ggplot2::ggplot(plot_df, ggplot2::aes(x = direct, y = gibbs)) +
+    ggplot2::geom_abline(slope = 1, intercept = 0) +
+    ggplot2::geom_point(color = "red", size = 1.5) +
+    ggplot2::facet_wrap(~ test_fn, scales = "free") +
+    ggplot2::labs(x = "Direct draw", y = "Gibbs draw") +
+    ggplot2::theme_bw() +
+    ggplot2::theme(
+      strip.text       = ggplot2::element_text(size = 16, face = "bold"),
+      axis.title       = ggplot2::element_text(size = 16),
+      axis.text        = ggplot2::element_text(size = 13),
+      panel.grid.minor = ggplot2::element_blank()
+    )
 }
 
